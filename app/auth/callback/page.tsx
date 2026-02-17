@@ -12,18 +12,21 @@ export default function AuthCallback() {
     const handleAuth = async () => {
       const { data, error } = await supabase.auth.getSession();
 
-      if (error || !data.session) {
-        // If something went wrong, send user back to login
-        router.replace("/");
+      if (error) {
+        console.error("Session error:", error.message);
+        router.push("/");
         return;
       }
 
-      // If session exists, go to dashboard
-      router.replace("/dashboard");
+      if (data.session) {
+        router.replace("/dashboard");
+      } else {
+        router.push("/");
+      }
     };
 
     handleAuth();
-  }, [router, supabase]);
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

@@ -62,7 +62,7 @@ export default function Home() {
       provider: "google",
       options: {
         queryParams: { prompt: "select_account" },
-        redirectTo: "http://localhost:3000/auth/callback",
+        redirectTo: "https://smart-bookmark-steel.vercel.app/auth/callback",
       },
     });
   };
