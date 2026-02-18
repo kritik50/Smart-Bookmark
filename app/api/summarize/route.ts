@@ -82,9 +82,9 @@ Generate a concise, useful 2-3 sentence description that:
 
 Summary:`;
 
-const modelName = "gemini-1.5-flash";
+const modelName = "gemini-2.0-flash";
 
-const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
 
 const response = await fetch(apiUrl, {
