@@ -1,135 +1,148 @@
 // app/api/summarize/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+
   try {
-    // 1. Authenticate user
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 2. Validate input
-    const body = await req.json();
-    const { url, title, bookmarkId } = body;
+    // 1. Parse and validate input
+    const { url, title } = await req.json();
 
     if (!url || !title) {
       return NextResponse.json(
-        { error: "Missing required fields: url and title" },
+        { summary: "Missing URL or title" },
         { status: 400 }
       );
     }
 
+    // 2. Validate URL format
     try {
       new URL(url);
     } catch {
-      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
-    }
-
-    // 3. Check cache
-    if (bookmarkId) {
-      const { data: existing } = await supabase
-        .from("bookmarks")
-        .select("summary")
-        .eq("id", bookmarkId)
-        .single();
-
-      if (existing?.summary) {
-        return NextResponse.json({
-          summary: existing.summary,
-          cached: true,
-          processingTime: Date.now() - startTime,
-        });
-      }
-    }
-
-    // 4. Generate summary with Gemini
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 503 });
-    }
-
-    const prompt = `You are a bookmark summarization assistant.
-Given:
-- Title: "${title}"
-- URL: "${url}"
-Generate a concise, useful 2-3 sentence description that:
-1. Explains what content/value this link provides
-2. Uses active, specific language
-3. Helps the user remember why they saved it
-4. Does NOT repeat the exact title
-5. Does NOT use phrases like "This webpage" or "This link"
-Summary:`;
-
-    const modelName = "gemini-2.0-flash-lite";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-    // ✅ FIX 2: Proper timeout with AbortController
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user", // ✅ FIX 1: Added role
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 200,
-        },
-      }),
-    });
-
-    clearTimeout(timeout); // ✅ FIX 2: Clear timeout after response
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-
-      if (response.status === 429) {
-        return NextResponse.json(
-          { error: "AI service is busy. Please try again in a moment.", retryAfter: 30 },
-          { status: 429 }
-        );
-      }
-
-      console.error("Gemini API Error:", { status: response.status, error: errorData });
-      return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
-    }
-
-    const data = await response.json();
-    const summary =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-      "Unable to generate summary.";
-
-    return NextResponse.json({
-      summary,
-      cached: false,
-      processingTime: Date.now() - startTime,
-    });
-
-  } catch (error: any) {
-    console.error("Summary API Error:", error);
-
-    if (error.name === "AbortError") {
       return NextResponse.json(
-        { error: "Request timeout - AI took too long to respond" },
-        { status: 504 }
+        { summary: "Invalid URL format" },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // 3. Check API key
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({
+        summary: "AI summarization is not configured. Add GEMINI_API_KEY to environment variables.",
+      });
+    }
+
+    // 4. Build prompt
+    const prompt = `Summarize this webpage in exactly 2 concise sentences based on its title and URL.
+Be specific about what content or value it provides.
+Do not use phrases like "This page" or "This website".
+Use active, informative language.
+
+Title: "${title}"
+URL: "${url}"
+
+Summary:`;
+
+    // 5. Try models in order (faster → slower, handles rate limits)
+    const modelsToTry = [
+      "gemini-2.0-flash-lite",    // Fastest, free tier friendly
+      "gemini-2.0-flash",          // Backup if lite is rate limited
+      "gemini-flash-lite-latest",  // Fallback alias
+    ];
+
+    let lastError: any = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 150,
+                topP: 0.9,
+              },
+            }),
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        // Handle rate limit - try next model
+        if (response.status === 429) {
+          console.log(`${model} rate limited, trying next model...`);
+          lastError = { status: 429, model };
+          continue;
+        }
+
+        // Handle other API errors
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`${model} error:`, response.status, errorData);
+          lastError = { status: response.status, model, error: errorData };
+          continue;
+        }
+
+        // Parse successful response
+        const data = await response.json();
+
+        // Handle safety blocks
+        if (data?.candidates?.[0]?.finishReason === "SAFETY") {
+          return NextResponse.json({
+            summary: "Content was blocked by AI safety filters.",
+          });
+        }
+
+        // Extract summary text
+        const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+        if (summary) {
+          console.log(`✅ Summary generated using ${model} in ${Date.now() - startTime}ms`);
+          return NextResponse.json({ summary });
+        }
+
+        // Empty response from this model, try next
+        console.log(`${model} returned empty response, trying next...`);
+        continue;
+
+      } catch (error: any) {
+        // Timeout or network error
+        if (error.name === "AbortError") {
+          console.log(`${model} timed out, trying next model...`);
+          lastError = { model, error: "timeout" };
+          continue;
+        }
+
+        console.error(`${model} threw error:`, error.message);
+        lastError = { model, error: error.message };
+        continue;
+      }
+    }
+
+    // All models failed
+    if (lastError?.status === 429) {
+      return NextResponse.json({
+        summary: "AI service is currently rate limited. Please try again in 1 minute.",
+      });
+    }
+
+    return NextResponse.json({
+      summary: "Could not generate summary. All AI models are currently unavailable.",
+    });
+
+  } catch (error: any) {
+    console.error("Summarize API critical error:", error);
+    return NextResponse.json({
+      summary: `Server error: ${error.message || "Unknown error"}`,
+    });
   }
 }
