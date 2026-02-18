@@ -4,9 +4,8 @@ import { createClient } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
-
   try {
-    // 1. Authenticate user (await the client creation)
+    // 1. Authenticate user
     const supabase = await createClient();
     const {
       data: { user },
@@ -14,10 +13,7 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // 2. Validate input
@@ -27,21 +23,17 @@ export async function POST(req: NextRequest) {
     if (!url || !title) {
       return NextResponse.json(
         { error: "Missing required fields: url and title" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    // Validate URL format
     try {
       new URL(url);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid URL format" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
     }
 
-    // 3. Check cache (Supabase) - avoid re-summarizing
+    // 3. Check cache
     if (bookmarkId) {
       const { data: existing } = await supabase
         .from("bookmarks")
@@ -61,72 +53,60 @@ export async function POST(req: NextRequest) {
     // 4. Generate summary with Gemini
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "AI service unavailable" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "AI service unavailable" }, { status: 503 });
     }
 
     const prompt = `You are a bookmark summarization assistant.
-
 Given:
 - Title: "${title}"
 - URL: "${url}"
-
 Generate a concise, useful 2-3 sentence description that:
 1. Explains what content/value this link provides
 2. Uses active, specific language
 3. Helps the user remember why they saved it
 4. Does NOT repeat the exact title
 5. Does NOT use phrases like "This webpage" or "This link"
-
 Summary:`;
 
-const modelName = "gemini-2.0-flash";
+    const modelName = "gemini-2.0-flash";
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    // ✅ FIX 2: Proper timeout with AbortController
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user", // ✅ FIX 1: Added role
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 200,
+        },
+      }),
+    });
 
-const response = await fetch(apiUrl, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    contents: [
-      {
-        parts: [{ text: prompt }]
-      }
-    ],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 200,
-    },
-  }),
-});
-
-    //clearTimeout(timeoutId);
+    clearTimeout(timeout); // ✅ FIX 2: Clear timeout after response
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
       if (response.status === 429) {
         return NextResponse.json(
-          {
-            error: "AI service is busy. Please try again in a moment.",
-            retryAfter: 30,
-          },
-          { status: 429 },
+          { error: "AI service is busy. Please try again in a moment.", retryAfter: 30 },
+          { status: 429 }
         );
       }
 
-      console.error("Gemini API Error:", {
-        status: response.status,
-        error: errorData,
-      });
-
-      return NextResponse.json(
-        { error: "AI generation failed" },
-        { status: 500 },
-      );
+      console.error("Gemini API Error:", { status: response.status, error: errorData });
+      return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
     }
 
     const data = await response.json();
@@ -139,19 +119,17 @@ const response = await fetch(apiUrl, {
       cached: false,
       processingTime: Date.now() - startTime,
     });
+
   } catch (error: any) {
     console.error("Summary API Error:", error);
 
     if (error.name === "AbortError") {
       return NextResponse.json(
         { error: "Request timeout - AI took too long to respond" },
-        { status: 504 },
+        { status: 504 }
       );
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
