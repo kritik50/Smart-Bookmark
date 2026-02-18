@@ -68,7 +68,7 @@ Generate a concise, useful 2-3 sentence description that:
 5. Does NOT use phrases like "This webpage" or "This link"
 Summary:`;
 
-    const modelName = "gemini-2.0-flash";
+    const modelName = "gemini-2.0-flash-lite";
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     // ✅ FIX 2: Proper timeout with AbortController
