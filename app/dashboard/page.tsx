@@ -544,7 +544,6 @@ export default function Dashboard() {
 
   const fetchBookmarks = async (userId: string) => {
     setLoading(true);
-
     const { data, error } = await supabase
       .from("bookmarks")
       .select("*")
@@ -553,19 +552,14 @@ export default function Dashboard() {
 
     if (!error && data) {
       setBookmarks(data);
-
-      // Load stored summaries properly
       const storedSummaries: Record<string, string> = {};
-
       data.forEach((b: BookmarkItem) => {
         if (b.summary) {
           storedSummaries[b.id] = b.summary;
         }
       });
-
       setSummaries(storedSummaries);
     }
-
     setLoading(false);
   };
 
@@ -648,9 +642,7 @@ export default function Dashboard() {
   };
 
   // ── AI Summarise ────────────────────────────────────────────────────────────
-  // ── AI Summarise ────────────────────────────────────────────────────────────
   const summarizeBookmark = async (bm: BookmarkItem) => {
-    // If already exists → just toggle
     if (summaries[bm.id]) {
       setExpandedSummary(expandedSummary === bm.id ? null : bm.id);
       return;
@@ -669,10 +661,8 @@ export default function Dashboard() {
       const json = await res.json();
       const summary = json.summary || "Could not generate summary.";
 
-      // 1️⃣ Save locally
       setSummaries((prev) => ({ ...prev, [bm.id]: summary }));
 
-      // 2️⃣ Persist to Supabase (IMPORTANT)
       const { error } = await supabase
         .from("bookmarks")
         .update({ summary })
@@ -721,7 +711,7 @@ export default function Dashboard() {
     if (activeCollectionId === id) setActiveCollectionId(null);
   };
 
-  // ── Drag & Drop into collection ──────────────────────────────────────────────
+  // ── Drag & Drop ──────────────────────────────────────────────────────────────
   const handleDragStart = (e: React.DragEvent, bookmarkId: string) => {
     setDraggingBookmark(bookmarkId);
     e.dataTransfer.effectAllowed = "move";
@@ -733,10 +723,9 @@ export default function Dashboard() {
   const handleDrop = async (e: React.DragEvent, collectionId: string) => {
     e.preventDefault();
     if (!draggingBookmark) return;
-    const bmId = draggingBookmark; // capture before clearing
+    const bmId = draggingBookmark;
     setDragOverCollection(null);
     setDraggingBookmark(null);
-    // Optimistic update in UI
     setBookmarks((prev) =>
       prev.map((b) =>
         b.id === bmId ? { ...b, collection_id: collectionId } : b,
@@ -749,7 +738,6 @@ export default function Dashboard() {
       .eq("user_id", user.id);
     if (error) {
       console.error("Drag-drop error:", error.message);
-      // Rollback optimistic update
       setBookmarks((prev) =>
         prev.map((b) => (b.id === bmId ? { ...b, collection_id: null } : b)),
       );
@@ -851,7 +839,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* ⌘K button */}
               <button
                 onClick={() => setShowCmdPalette(true)}
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
@@ -899,7 +886,6 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* All bookmarks link */}
               <button
                 onClick={() => setActiveCollectionId(null)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-bold transition-all mb-1 ${
@@ -910,14 +896,11 @@ export default function Dashboard() {
               >
                 <Bookmark className="w-3.5 h-3.5" />
                 All Bookmarks
-                <span
-                  className={`ml-auto text-xs font-bold ${activeCollectionId === null ? "text-slate-400" : "text-slate-400"}`}
-                >
+                <span className="ml-auto text-xs font-bold text-slate-400">
                   {bookmarks.length}
                 </span>
               </button>
 
-              {/* Collections list */}
               <div className="space-y-1 mt-2">
                 {collections.map((col) => {
                   const count = bookmarks.filter(
@@ -934,7 +917,6 @@ export default function Dashboard() {
                           : "hover:bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {/* Left Side */}
                       <button
                         onClick={() =>
                           setActiveCollectionId(isActive ? null : col.id)
@@ -942,12 +924,11 @@ export default function Dashboard() {
                         className="flex items-center gap-2.5 flex-1 text-left"
                       >
                         <span className="text-base">{col.icon}</span>
-                        <span className=" text-xs font-semibold truncate">
+                        <span className="text-xs font-semibold truncate">
                           {col.name}
                         </span>
                       </button>
 
-                      {/* Right Side */}
                       <div className="flex items-center gap-2">
                         <span
                           className={`text-xs font-bold ${
@@ -956,8 +937,6 @@ export default function Dashboard() {
                         >
                           {count}
                         </span>
-
-                        {/* Delete icon */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -973,7 +952,6 @@ export default function Dashboard() {
                 })}
               </div>
 
-              {/* New collection form */}
               {showNewCollectionForm && (
                 <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                   <input
@@ -984,7 +962,6 @@ export default function Dashboard() {
                     onKeyDown={(e) => e.key === "Enter" && createCollection()}
                     autoFocus
                   />
-                  {/* Color picker */}
                   <div className="flex gap-1.5 flex-wrap">
                     {COLLECTION_COLORS.map((c) => (
                       <button
@@ -995,7 +972,6 @@ export default function Dashboard() {
                       />
                     ))}
                   </div>
-                  {/* Icon picker */}
                   <div className="flex gap-1.5 flex-wrap">
                     {COLLECTION_ICONS.map((icon) => (
                       <button
@@ -1024,7 +1000,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Drag hint */}
               {collections.length > 0 && (
                 <p className="text-[10px] text-slate-400 font-medium text-center mt-4 flex items-center justify-center gap-1">
                   <GripVertical className="w-3 h-3" />
@@ -1036,7 +1011,6 @@ export default function Dashboard() {
 
           {/* ════ MAIN CONTENT ══════════════════════════════════════════════ */}
           <div className="flex-1 min-w-0">
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
               <div>
                 <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2 leading-none">
@@ -1084,7 +1058,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Category filter pills */}
             {categories.length > 1 && (
               <div className="flex items-center gap-2 mb-6 flex-wrap">
                 {categories.map((cat) => {
@@ -1163,7 +1136,6 @@ export default function Dashboard() {
                         }`}
                       />
 
-                      {/* ⚠️ Duplicate warning */}
                       {duplicateWarning && (
                         <div className="mt-2 warn-in flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -1182,7 +1154,6 @@ export default function Dashboard() {
                         </div>
                       )}
 
-                      {/* Live domain + category preview */}
                       {url && !duplicateWarning && (
                         <div className="mt-2 badge-pop flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-100 shadow-sm">
                           <img
@@ -1211,7 +1182,6 @@ export default function Dashboard() {
                       )}
                     </div>
 
-                    {/* Collection selector */}
                     {collections.length > 0 && (
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">
@@ -1249,7 +1219,6 @@ export default function Dashboard() {
                   </form>
                 </div>
 
-                {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     {
@@ -1321,8 +1290,7 @@ export default function Dashboard() {
                           onDragStart={(e) => handleDragStart(e, bm.id)}
                           className={`group relative bg-white/75 backdrop-blur-md border border-white/70 p-5 rounded-2xl shadow-sm
                             hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 hover:border-indigo-200
-                            transition-all duration-300 cursor-grab active:cursor-grabbing overflow-hidden
-                             "card-enter"}
+                            transition-all duration-300 cursor-pointer active:cursor-grabbing overflow-hidden
                             ${isDeleting ? "card-exit" : ""}
                           `}
                         >
@@ -1346,14 +1314,8 @@ export default function Dashboard() {
                                   alt=""
                                   className="w-6 h-6 object-contain"
                                   onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).nextElementSibling?.classList.remove(
-                                      "hidden",
-                                    );
+                                    (e.target as HTMLImageElement).style.display = "none";
+                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
                                   }}
                                 />
                                 <span className="hidden text-base font-extrabold text-indigo-600">
@@ -1370,7 +1332,6 @@ export default function Dashboard() {
 
                             {/* Actions */}
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
-                              {/* AI summarise */}
                               <button
                                 onClick={() => summarizeBookmark(bm)}
                                 className={`p-1.5 rounded-lg transition-all ${hasSummary || isSummarizing ? "text-violet-600 bg-violet-50" : "text-slate-400 hover:text-violet-600 hover:bg-violet-50"}`}
@@ -1407,9 +1368,7 @@ export default function Dashboard() {
                           <div className="relative">
                             {bmCollection && (
                               <div className="flex items-center gap-1 mb-1.5">
-                                <span className="text-xs">
-                                  {bmCollection.icon}
-                                </span>
+                                <span className="text-xs">{bmCollection.icon}</span>
                                 <span
                                   className="text-[10px] font-bold"
                                   style={{ color: bmCollection.color }}
