@@ -712,37 +712,44 @@ export default function Dashboard() {
   };
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────────
-  const handleDragStart = (e: React.DragEvent, bookmarkId: string) => {
-    setDraggingBookmark(bookmarkId);
-    e.dataTransfer.effectAllowed = "move";
-  };
+const handleDragStart = (e: React.DragEvent, bookmarkId: string) => {
+  e.dataTransfer.setData("bookmarkId", bookmarkId);
+  e.dataTransfer.effectAllowed = "move";
+};
   const handleDragOver = (e: React.DragEvent, collectionId: string) => {
     e.preventDefault();
     setDragOverCollection(collectionId);
   };
-  const handleDrop = async (e: React.DragEvent, collectionId: string) => {
-    e.preventDefault();
-    if (!draggingBookmark) return;
-    const bmId = draggingBookmark;
-    setDragOverCollection(null);
-    setDraggingBookmark(null);
-    setBookmarks((prev) =>
-      prev.map((b) =>
-        b.id === bmId ? { ...b, collection_id: collectionId } : b,
-      ),
-    );
-    const { error } = await supabase
-      .from("bookmarks")
-      .update({ collection_id: collectionId })
-      .eq("id", bmId)
-      .eq("user_id", user.id);
-    if (error) {
-      console.error("Drag-drop error:", error.message);
-      setBookmarks((prev) =>
-        prev.map((b) => (b.id === bmId ? { ...b, collection_id: null } : b)),
-      );
-    }
-  };
+ const handleDrop = async (
+  e: React.DragEvent,
+  collectionId: string
+) => {
+  e.preventDefault();
+
+  const bookmarkId = e.dataTransfer.getData("bookmarkId");
+  if (!bookmarkId) return;
+
+  // Optimistic UI update
+  setBookmarks((prev) =>
+    prev.map((b) =>
+      b.id === bookmarkId
+        ? { ...b, collection_id: collectionId }
+        : b
+    )
+  );
+
+  // Update DB
+  const { error } = await supabase
+    .from("bookmarks")
+    .update({ collection_id: collectionId })
+    .eq("id", bookmarkId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Drag-drop error:", error.message);
+  }
+};
+
   const handleDragLeave = () => setDragOverCollection(null);
 
   // ── Filters ─────────────────────────────────────────────────────────────────
