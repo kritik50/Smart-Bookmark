@@ -775,33 +775,85 @@ export default function Dashboard() {
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
-        * { font-family: 'Bricolage Grotesque', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+      <style>
+        {`
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
+* { font-family: 'Bricolage Grotesque', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace !important; }
 
-        @keyframes card-in  { from { opacity:0; transform:translateY(18px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes card-out { from { opacity:1; transform:scale(1); }  to { opacity:0; transform:scale(0.88) translateY(-6px); } }
-        @keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        @keyframes float    { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(1.5deg)} }
-        @keyframes badge-pop{ 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
-        @keyframes warn-in  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes summary-in{ from{opacity:0;transform:scaleY(0.8);transform-origin:top} to{opacity:1;transform:scaleY(1)} }
-        @keyframes cmd-in   { from{opacity:0;transform:translateY(-12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes drag-pulse{ 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4)} 50%{box-shadow:0 0 0 6px rgba(99,102,241,0)} }
-        @keyframes gradient-text { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes card-in  { from { opacity:0; transform:translateY(18px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes card-out { from { opacity:1; transform:scale(1); }  to { opacity:0; transform:scale(0.88) translateY(-6px); } }
+@keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes float    { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(1.5deg)} }
+@keyframes badge-pop{ 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+@keyframes warn-in  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes summary-in{ from{opacity:0;transform:scaleY(0.8);transform-origin:top} to{opacity:1;transform:scaleY(1)} }
+@keyframes cmd-in   { from{opacity:0;transform:translateY(-12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes drag-pulse{ 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4)} 50%{box-shadow:0 0 0 6px rgba(99,102,241,0)} }
+@keyframes gradient-text { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 
-        .card-enter  { animation: card-in  0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        .card-exit   { animation: card-out 0.28s cubic-bezier(0.55,0,1,0.45) forwards; }
-        .badge-pop   { animation: badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        .warn-in     { animation: warn-in 0.3s ease-out forwards; }
-        .summary-in  { animation: summary-in 0.3s ease-out forwards; }
-        .cmd-palette-in { animation: cmd-in 0.25s cubic-bezier(0.22,1,0.36,1) forwards; }
-        .float-icon  { animation: float 4s ease-in-out infinite; }
-        .drag-over   { animation: drag-pulse 1s ease-in-out infinite; border-color:#6366f1 !important; background:rgba(99,102,241,0.08) !important; }
-        .shimmer-text { background:linear-gradient(90deg,#6366f1,#a855f7,#ec4899,#6366f1); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3s linear infinite; }
-        ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#c7d2fe; border-radius:10px; }
-      `}</style>
+.card-enter  { animation: card-in  0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.card-exit   { animation: card-out 0.28s cubic-bezier(0.55,0,1,0.45) forwards; }
+.badge-pop   { animation: badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.warn-in     { animation: warn-in 0.3s ease-out forwards; }
+.summary-in  { animation: summary-in 0.3s ease-out forwards; }
+.cmd-palette-in { animation: cmd-in 0.25s cubic-bezier(0.22,1,0.36,1) forwards; }
+.float-icon  { animation: float 4s ease-in-out infinite; }
+.drag-over   { animation: drag-pulse 1s ease-in-out infinite; border-color:#6366f1 !important; background:rgba(99,102,241,0.08) !important; }
+.shimmer-text { background:linear-gradient(90deg,#6366f1,#a855f7,#ec4899,#6366f1); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3s linear infinite; }
+::-webkit-scrollbar { width:5px; } 
+::-webkit-scrollbar-track { background:transparent; } 
+::-webkit-scrollbar-thumb { background:#c7d2fe; border-radius:10px; }
+
+/* Mobile responsive fixes */
+@media (max-width: 1023px) {
+  aside {
+    display: none !important;
+  }
+  
+  .flex-1.min-w-0 {
+    width: 100%;
+  }
+  
+  .lg\\:grid-cols-12 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .lg\\:col-span-4,
+  .lg\\:col-span-8 {
+    grid-column: span 1 !important;
+  }
+  
+  .lg\\:col-span-4 > div {
+    position: static !important;
+  }
+  
+  nav {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .sm\\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .max-w-\\[1400px\\] {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  
+  h1 {
+    font-size: 1.875rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+}
+`}
+      </style>
 
       {/* ── Command Palette ──────────────────────────────────────────────────── */}
       {showCmdPalette && (
@@ -1314,8 +1366,14 @@ export default function Dashboard() {
                                   alt=""
                                   className="w-6 h-6 object-contain"
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = "none";
-                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none";
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).nextElementSibling?.classList.remove(
+                                      "hidden",
+                                    );
                                   }}
                                 />
                                 <span className="hidden text-base font-extrabold text-indigo-600">
@@ -1368,7 +1426,9 @@ export default function Dashboard() {
                           <div className="relative">
                             {bmCollection && (
                               <div className="flex items-center gap-1 mb-1.5">
-                                <span className="text-xs">{bmCollection.icon}</span>
+                                <span className="text-xs">
+                                  {bmCollection.icon}
+                                </span>
                                 <span
                                   className="text-[10px] font-bold"
                                   style={{ color: bmCollection.color }}
