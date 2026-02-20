@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check API key
+    
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Build prompt
     const prompt = `Summarize this webpage in exactly 2 concise sentences based on its title and URL.
 Be specific about what content or value it provides.
 Do not use phrases like "This page" or "This website".
