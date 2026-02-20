@@ -390,6 +390,7 @@ export default function Dashboard() {
   const supabase = createClient();
   const router = useRouter();
 
+  const [showMobileCollections, setShowMobileCollections] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -494,6 +495,71 @@ export default function Dashboard() {
       if (channel) supabase.removeChannel(channel);
     };
   }, []);
+
+  // Mobile Collections Modal
+  const MobileCollectionsModal = () => (
+    <div
+      className="lg:hidden fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm"
+      onClick={() => setShowMobileCollections(false)}
+    >
+      <div
+        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-extrabold text-slate-900">Collections</h3>
+          <button
+            onClick={() => setShowMobileCollections(false)}
+            className="p-2 hover:bg-slate-100 rounded-xl"
+          >
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        <button
+          onClick={() => {
+            setActiveCollectionId(null);
+            setShowMobileCollections(false);
+          }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold mb-3 ${activeCollectionId === null ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+        >
+          <Bookmark className="w-4 h-4" />
+          All Bookmarks
+          <span className="ml-auto text-xs">{bookmarks.length}</span>
+        </button>
+
+        <div className="space-y-2">
+          {collections.map((col) => (
+            <button
+              key={col.id}
+              onClick={() => {
+                setActiveCollectionId(col.id);
+                setShowMobileCollections(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold ${activeCollectionId === col.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+            >
+              <span className="text-lg">{col.icon}</span>
+              <span className="flex-1 text-left truncate">{col.name}</span>
+              <span className="text-xs">
+                {bookmarks.filter((b) => b.collection_id === col.id).length}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => {
+            setShowNewCollectionForm(true);
+            setShowMobileCollections(false);
+          }}
+          className="w-full mt-4 flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-3 rounded-xl"
+        >
+          <FolderPlus className="w-4 h-4" />
+          New Collection
+        </button>
+      </div>
+    </div>
+  );
 
   const handleRealtimeUpdate = (payload: any) => {
     if (payload.eventType === "INSERT")
@@ -869,6 +935,12 @@ export default function Dashboard() {
     display: none !important;
   }
 }
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.22,1,0.36,1); }
       `}</style>
 
       {showCmdPalette && (
@@ -883,6 +955,7 @@ export default function Dashboard() {
           }}
         />
       )}
+      {showMobileCollections && <MobileCollectionsModal />}
 
       <div className="min-h-screen bg-[#f4f4f8] selection:bg-indigo-500 selection:text-white overflow-x-hidden">
         <div className="fixed inset-0 z-0 pointer-events-none">
@@ -912,6 +985,30 @@ export default function Dashboard() {
                 <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-400">
                   ⌘K
                 </kbd>
+              </button>
+              <button
+                onClick={() => setShowCmdPalette(true)}
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
+              >
+                <Command className="w-3 h-3" />
+                <span>Search</span>
+                <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-400">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* ADD THIS NEW BUTTON */}
+              <button
+                onClick={() => setShowMobileCollections(true)}
+                className="lg:hidden flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
+              >
+                <Folder className="w-3 h-3" />
+                <span>Collections</span>
+                {collections.length > 0 && (
+                  <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                    {collections.length}
+                  </span>
+                )}
               </button>
               {user && (
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-200/80">
