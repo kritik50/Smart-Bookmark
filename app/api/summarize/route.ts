@@ -5,7 +5,6 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // 1. Parse and validate input
     const { url, title } = await req.json();
 
     if (!url || !title) {
@@ -15,7 +14,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Validate URL format
     try {
       new URL(url);
     } catch {
@@ -43,7 +41,7 @@ URL: "${url}"
 
 Summary:`;
 
-    // 5. Try models in order (faster → slower, handles rate limits)
+    
     const modelsToTry = [
       "gemini-2.0-flash-lite",    // Fastest, free tier friendly
       "gemini-2.0-flash",          // Backup if lite is rate limited
@@ -55,7 +53,7 @@ Summary:`;
     for (const model of modelsToTry) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -76,14 +74,14 @@ Summary:`;
 
         clearTimeout(timeoutId);
 
-        // Handle rate limit - try next model
+        
         if (response.status === 429) {
           console.log(`${model} rate limited, trying next model...`);
           lastError = { status: 429, model };
           continue;
         }
 
-        // Handle other API errors
+      
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error(`${model} error:`, response.status, errorData);
@@ -91,17 +89,17 @@ Summary:`;
           continue;
         }
 
-        // Parse successful response
+        
         const data = await response.json();
 
-        // Handle safety blocks
+        
         if (data?.candidates?.[0]?.finishReason === "SAFETY") {
           return NextResponse.json({
             summary: "Content was blocked by AI safety filters.",
           });
         }
 
-        // Extract summary text
+        
         const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
         if (summary) {
@@ -109,12 +107,12 @@ Summary:`;
           return NextResponse.json({ summary });
         }
 
-        // Empty response from this model, try next
+        
         console.log(`${model} returned empty response, trying next...`);
         continue;
 
       } catch (error: any) {
-        // Timeout or network error
+        
         if (error.name === "AbortError") {
           console.log(`${model} timed out, trying next model...`);
           lastError = { model, error: "timeout" };
@@ -127,7 +125,7 @@ Summary:`;
       }
     }
 
-    // All models failed
+    
     if (lastError?.status === 429) {
       return NextResponse.json({
         summary: "AI service is currently rate limited. Please try again in 1 minute.",

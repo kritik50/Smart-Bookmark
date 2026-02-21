@@ -10,8 +10,6 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuth = async () => {
       const supabase = createClient();
-      
-      // Get session from URL hash (OAuth redirect)
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
@@ -21,7 +19,6 @@ export default function AuthCallback() {
       }
 
       if (session) {
-        // Small delay to ensure session is saved
         await new Promise(r => setTimeout(r, 100));
         router.replace("/dashboard");
       } else {

@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase-client";
 import { useState, useEffect, useRef } from "react";
 import { Zap, CheckCircle2, ArrowRight, Sparkles, Globe, Youtube, Github, Star } from "lucide-react";
 
-// ── Floating bookmark card data ───────────────────────────────────────────────
 const DEMO_CARDS = [
   { title: "Awwwards — Website Awards", domain: "awwwards.com", tag: "Design", tagColor: "#f472b6", icon: "🎨", delay: 0 },
   { title: "GitHub Copilot Docs", domain: "github.com", tag: "Code", tagColor: "#60a5fa", icon: "⚡", delay: 0.4 },
@@ -24,13 +23,13 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const leftRef = useRef<HTMLDivElement>(null);
 
-  // Mount animation trigger
+  
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 80);
     return () => clearTimeout(t);
   }, []);
 
-  // Rotating headline words
+  
   useEffect(() => {
     const interval = setInterval(() => {
       setWordVisible(false);
@@ -42,7 +41,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Mouse parallax on left panel
+  
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!leftRef.current) return;

@@ -424,8 +424,6 @@ export default function Dashboard() {
     COLLECTION_ICONS[0],
   );
   const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
-
-  // ✅ Single unified drag state
   const [dragOverCollectionId, setDragOverCollectionId] = useState<
     string | null
   >(null);
@@ -496,7 +494,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Mobile Collections Modal
+  
   const MobileCollectionsModal = () => (
     <div
       className="lg:hidden fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm"
@@ -668,7 +666,6 @@ export default function Dashboard() {
   };
 
   const removeFromCollection = async (bookmarkId: string) => {
-    // Optimistic update
     setBookmarks((prev) =>
       prev.map((b) =>
         b.id === bookmarkId ? { ...b, collection_id: null } : b,
@@ -683,7 +680,6 @@ export default function Dashboard() {
 
     if (error) {
       console.error("Remove from collection error:", error);
-      // Rollback
       fetchBookmarks(user.id);
     }
   };
@@ -746,7 +742,7 @@ export default function Dashboard() {
     if (activeCollectionId === id) setActiveCollectionId(null);
   };
 
-  // ✅ DRAG & DROP — completely fixed
+  
   const handleDragStart = (e: React.DragEvent, bookmarkId: string) => {
     e.dataTransfer.setData("bookmarkId", bookmarkId);
     e.dataTransfer.effectAllowed = "move";
@@ -758,21 +754,21 @@ export default function Dashboard() {
     setDragOverCollectionId(targetId);
   };
 
-  // ✅ Only clear highlight when leaving the element itself, not its children
+
   const handleDragLeave = (e: React.DragEvent) => {
     if (!(e.currentTarget as Node).contains(e.relatedTarget as Node)) {
       setDragOverCollectionId(null);
     }
   };
 
-  // ✅ Drop onto a specific collection
+  
   const handleDrop = async (e: React.DragEvent, collectionId: string) => {
     e.preventDefault();
     setDragOverCollectionId(null);
     const bookmarkId = e.dataTransfer.getData("bookmarkId");
     if (!bookmarkId) return;
 
-    // Optimistic update
+    
     setBookmarks((prev) =>
       prev.map((b) =>
         b.id === bookmarkId ? { ...b, collection_id: collectionId } : b,
@@ -786,7 +782,7 @@ export default function Dashboard() {
       .eq("user_id", user.id);
     if (error) {
       console.error("Drop error:", error.message);
-      // Rollback
+      
       setBookmarks((prev) =>
         prev.map((b) =>
           b.id === bookmarkId ? { ...b, collection_id: null } : b,
@@ -795,7 +791,7 @@ export default function Dashboard() {
     }
   };
 
-  // ✅ Drop onto "All Bookmarks" removes from collection
+  
   const handleDropRemoveCollection = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverCollectionId(null);
@@ -997,7 +993,7 @@ export default function Dashboard() {
                 </kbd>
               </button>
 
-              {/* ADD THIS NEW BUTTON */}
+              
               <button
                 onClick={() => setShowMobileCollections(true)}
                 className="lg:hidden flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
@@ -1029,7 +1025,7 @@ export default function Dashboard() {
         </nav>
 
         <div className="relative z-10 max-w-[1400px] mx-auto px-5 py-6 flex gap-6">
-          {/* ════ COLLECTIONS SIDEBAR ════════════════════════════════════════ */}
+          
           <aside className="w-64 flex-shrink-0 sticky top-24 h-fit">
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-lg shadow-indigo-100/20 p-4">
               <div className="flex items-center justify-between mb-4">
@@ -1045,7 +1041,6 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* ✅ "All Bookmarks" drop target — removes bookmark from any collection */}
               <div
                 className={`drop-target mb-1 ${dragOverCollectionId === "__all__" ? "is-dragging-over" : ""}`}
                 onDragOver={(e) => handleDragOver(e, "__all__")}
@@ -1067,8 +1062,6 @@ export default function Dashboard() {
                   </span>
                 </button>
               </div>
-
-              {/* ✅ Each collection is a proper drop target */}
               <div className="space-y-1 mt-2">
                 {collections.map((col) => {
                   const count = bookmarks.filter(
@@ -1179,8 +1172,7 @@ export default function Dashboard() {
               )}
             </div>
           </aside>
-
-          {/* ════ MAIN CONTENT ══════════════════════════════════════════════ */}
+          
           <div className="flex-1 min-w-0">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
               <div>
