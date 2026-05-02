@@ -34,7 +34,7 @@ export default function EditBookmarkModal({ bookmark, isOpen, onClose, onSave, c
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-bold mb-4">Edit Bookmark</h2>
+        <h2 className="text-xl font-bold mb-4 text-slate-900">Edit Bookmark</h2>
         
         <div className="space-y-4">
           <div>
