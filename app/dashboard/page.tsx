@@ -951,16 +951,6 @@ export default function Dashboard() {
                   ⌘K
                 </kbd>
               </button>
-              <button
-                onClick={() => setShowCmdPalette(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
-              >
-                <Command className="w-3 h-3" />
-                <span>Search</span>
-                <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-400">
-                  ⌘K
-                </kbd>
-              </button>
 
               
               <button

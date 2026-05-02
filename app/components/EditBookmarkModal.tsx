@@ -39,19 +39,19 @@ export default function EditBookmarkModal({ bookmark, isOpen, onClose, onSave, c
         <div className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1 block">Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400" />
+            <input value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1 block">URL</label>
-            <input value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400" />
+            <input value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1 block">Tags (comma separated)</label>
-            <input value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400" />
+            <input value={tags} onChange={e => setTags(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1 block">Collection</label>
-            <select value={collectionId} onChange={e => setCollectionId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400">
+            <select value={collectionId} onChange={e => setCollectionId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400">
               <option value="">No Collection</option>
               {collections.map((c: any) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
