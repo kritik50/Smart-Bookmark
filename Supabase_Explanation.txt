@@ -1,0 +1,19 @@
+Why We Used Supabase (Database & Backend-as-a-Service)
+
+1. What is Supabase?
+Supabase is an open-source alternative to Google's Firebase. Underneath the hood, it is essentially a highly-scalable PostgreSQL database wrapped in a suite of modern developer tools (Authentication, APIs, Real-time Subscriptions, and Storage).
+
+2. Why did we choose Supabase over MongoDB or standard SQL?
+a) pgvector: This is the single biggest reason. Supabase has native support for the `pgvector` extension. MongoDB and standard MySQL do not easily support Vector Embeddings out-of-the-box. We needed a place to store 768-dimensional float arrays (from Gemini) and perform mathematically intense Cosine Similarity calculations to make Semantic Search work. Supabase does this flawlessly at the database level.
+
+b) Built-in Authentication: Handling JWTs, OAuth tokens, and secure login is incredibly difficult to build from scratch. Supabase provides a plug-and-play Auth service. When a user logs in with Google, Supabase securely creates a session and gives the frontend a secure token.
+
+c) Real-time WebSockets: When a bookmark is saved via the API (like from a browser extension), the frontend needs to know. Normally, you would have to write complex WebSocket servers. With Supabase, we just subscribe to Postgres database changes (`supabase.channel('custom-all-channel')`), and the UI updates instantly when a new row is inserted.
+
+d) Row Level Security (RLS): Supabase enforces security at the database level. Instead of writing 100 API checks to ensure "User A cannot delete User B's bookmarks", we wrote a single SQL policy: `create policy "Users can only see their own bookmarks" on bookmarks for all using (auth.uid() = user_id)`. If someone tries to hack the API, the database itself rejects the query.
+
+3. What exactly is happening inside Supabase right now?
+- We have two main tables: `collections` and `bookmarks`.
+- The `bookmarks` table holds the `url`, `title`, `og_image` (the preview thumbnail), `summary` (AI generated), `tags` (JSON array from Gemini), and `embedding` (the vector array).
+- When a user searches semantically, the Next.js API doesn't pull all bookmarks. It calls a custom RPC (Remote Procedure Call) named `match_bookmarks`.
+- This RPC function runs directly on the Supabase server. It takes the search query's vector, calculates the distance against every bookmark vector using `<=>` (cosine distance operator), filters by the user's ID, and returns the top matches in milliseconds.
