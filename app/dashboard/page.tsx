@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase-client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 import EditBookmarkModal from "@/app/components/EditBookmarkModal";
 import {
   LogOut,
@@ -571,6 +572,7 @@ export default function Dashboard() {
       .single();
     if (error) {
       setBookmarks((prev) => prev.filter((b) => b.id !== tempId));
+      toast.error("Failed to save bookmark.");
     } else {
       setBookmarks((prev) => prev.map((b) => (b.id === tempId ? data : b)));
       setAnimatedCards((p) => {
@@ -579,6 +581,7 @@ export default function Dashboard() {
         s.add(data.id);
         return s;
       });
+      toast.success("Bookmark saved to library!");
     }
     setIsSubmitting(false);
   };
@@ -599,7 +602,12 @@ export default function Dashboard() {
       .delete()
       .eq("id", id)
       .eq("user_id", user.id);
-    if (error) setBookmarks(prev);
+    if (error) {
+      setBookmarks(prev);
+      toast.error("Failed to delete bookmark.");
+    } else {
+      toast.success("Bookmark deleted");
+    }
   };
 
   const removeFromCollection = async (bookmarkId: string) => {
@@ -652,12 +660,18 @@ export default function Dashboard() {
         .update(updates)
         .eq("id", bm.id)
         .eq("user_id", user.id);
-      if (error) console.error("Failed to save summary:", error.message);
+      if (error) {
+        console.error("Failed to save summary:", error.message);
+        toast.error("Failed to save AI summary.");
+      } else {
+        toast.success("AI Summary & Auto-tags generated!");
+      }
     } catch (err) {
       setSummaries((prev) => ({
         ...prev,
         [bm.id]: "Failed to fetch summary.",
       }));
+      toast.error("AI service error.");
     }
     setSummarizingId(null);
   };
@@ -692,7 +706,12 @@ export default function Dashboard() {
   const handleSaveEdit = async (id: string, updates: Partial<BookmarkItem>) => {
     setBookmarks(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
     const { error } = await supabase.from("bookmarks").update(updates).eq("id", id).eq("user_id", user.id);
-    if (error) console.error("Edit failed", error);
+    if (error) {
+      console.error("Edit failed", error);
+      toast.error("Failed to edit bookmark.");
+    } else {
+      toast.success("Bookmark updated successfully!");
+    }
   };
 
   
@@ -922,12 +941,10 @@ export default function Dashboard() {
         collections={collections} 
       />
 
-      <div className="min-h-screen bg-[#f4f4f8] selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+      <div className="min-h-screen bg-[#fafafa] selection:bg-indigo-500 selection:text-white overflow-x-hidden">
         <div className="fixed inset-0 z-0 pointer-events-none">
-          <div className="absolute inset-0 bg-[radial-gradient(#ddd6fe_1px,transparent_1px)] [background-size:28px_28px] opacity-40" />
-          <div className="absolute top-[-15%] left-[-5%] w-[600px] h-[600px] bg-violet-400/10 rounded-full blur-[130px]" />
-          <div className="absolute top-[30%] right-[-8%] w-[500px] h-[500px] bg-indigo-400/10 rounded-full blur-[100px]" />
-          <div className="absolute bottom-[-5%] left-[25%] w-[700px] h-[400px] bg-pink-300/8 rounded-full blur-[140px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+          <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-400 opacity-[0.08] blur-[100px]" />
         </div>
 
         <nav className="sticky top-4 z-50 max-w-[1400px] mx-auto px-4">
@@ -1207,174 +1224,81 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              <div className="lg:col-span-4 sticky top-28 space-y-4">
-                <div className="relative bg-white/70 backdrop-blur-2xl rounded-[2rem] border border-white/60 shadow-xl shadow-indigo-100/20 p-6 overflow-hidden">
-                  <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-indigo-500/8 to-purple-500/8 rounded-bl-[100px] -z-10" />
-                  <h2 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2.5">
-                    <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-1.5 rounded-lg shadow-sm">
-                      <Plus className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    New Bookmark
-                  </h2>
-                  <form onSubmit={addBookmark} className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">
-                        Title
-                      </label>
-                      <input
-                        ref={titleInputRef}
-                        required
-                        type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="e.g. Design Inspiration"
-                        className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400 focus:bg-white outline-none transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">
-                        URL
-                      </label>
-                      <input
-                        required
-                        type="url"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://..."
-                        className={`w-full bg-slate-50/80 border rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:ring-2 focus:bg-white outline-none transition-all ${duplicateWarning ? "border-amber-400 ring-2 ring-amber-200 bg-amber-50/50" : "border-slate-200 focus:ring-indigo-400/30 focus:border-indigo-400"}`}
-                      />
-                      {duplicateWarning && (
-                        <div className="mt-2 warn-in flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-[11px] font-bold text-amber-800">
-                              Already saved!
-                            </p>
-                            <p className="text-[11px] text-amber-700 mt-0.5">
-                              "
-                              <span className="font-bold">
-                                {duplicateWarning.title}
-                              </span>
-                              " · {formatDate(duplicateWarning.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {url && !duplicateWarning && (
-                        <div className="mt-2 badge-pop flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                          <img
-                            src={getFavicon(url)}
-                            className="w-4 h-4"
-                            onError={(e) =>
-                              (e.currentTarget.style.display = "none")
-                            }
-                          />
-                          <span className="text-xs font-bold text-slate-600 font-mono">
-                            {getDomain(url)}
-                          </span>
-                          {(() => {
-                            const cat = detectCategory(url);
-                            const Icon = cat.icon;
-                            return (
-                              <span
-                                className={`ml-auto flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cat.bg} ${cat.color}`}
-                              >
-                                <Icon className="w-2.5 h-2.5" />
-                                {cat.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                    {collections.length > 0 && (
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5 block">
-                          Collection
-                        </label>
-                        <select
-                          value={selectedCollectionId || ""}
-                          onChange={(e) =>
-                            setSelectedCollectionId(e.target.value || null)
-                          }
-                          className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400 outline-none transition-all"
-                        >
-                          <option value="">No collection</option>
-                          {collections.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.icon} {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <button
-                      disabled={isSubmitting}
-                      className="w-full mt-1 bg-slate-900 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:shadow-indigo-500/25 hover:-translate-y-0.5 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <span>Save to Library</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      label: "Total",
-                      val: bookmarks.length,
-                      color: "text-indigo-600",
-                    },
-                    {
-                      label: "Collections",
-                      val: collections.length,
-                      color: "text-violet-600",
-                    },
-                  ].map(({ label, val, color }) => (
-                    <div
-                      key={label}
-                      className="bg-white/70 backdrop-blur rounded-2xl border border-white/60 p-4 shadow-sm text-center"
-                    >
-                      <div className={`text-2xl font-extrabold ${color}`}>
-                        {val}
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                        {label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div className="bg-white border border-slate-200/60 shadow-sm shadow-slate-200/20 rounded-2xl p-2 mb-8 mt-2 flex items-center gap-3 w-full transition-all focus-within:shadow-md focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50">
+              <div className="flex-1 relative">
+                <input
+                  ref={titleInputRef}
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (!title) setTitle("Quick Save");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && url) {
+                      e.preventDefault();
+                      addBookmark(e as any);
+                    }
+                  }}
+                  placeholder="Paste any URL to save..."
+                  className="w-full bg-transparent pl-4 pr-4 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none"
+                />
               </div>
+              
+              {collections.length > 0 && (
+                <div className="hidden sm:block border-l border-slate-100 pl-3">
+                  <select
+                    value={selectedCollectionId || ""}
+                    onChange={(e) => setSelectedCollectionId(e.target.value || null)}
+                    className="bg-transparent text-xs font-bold text-slate-500 outline-none cursor-pointer hover:text-slate-800"
+                  >
+                    <option value="">No collection</option>
+                    {collections.map((c) => (
+                      <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              <div className="lg:col-span-8">
+              <button
+                onClick={addBookmark as any}
+                disabled={isSubmitting || !url}
+                className="bg-slate-900 hover:bg-indigo-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span className="text-xs hidden sm:inline">Save</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="w-full">
                 {loading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {[0, 1, 2, 3].map((i) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
                       <SkeletonCard key={i} delay={i * 80} />
                     ))}
                   </div>
                 ) : filteredBookmarks.length === 0 ? (
-                  <div className="bg-white/40 backdrop-blur-md border-2 border-dashed border-slate-200 rounded-3xl p-16 flex flex-col items-center text-center">
-                    <div className="float-icon bg-white p-5 rounded-2xl mb-4 shadow-md">
-                      <LayoutGrid className="w-8 h-8 text-slate-300" />
+                  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-24 flex flex-col items-center text-center shadow-sm">
+                    <div className="bg-slate-50 p-6 rounded-3xl mb-5 shadow-sm border border-slate-100">
+                      <LayoutGrid className="w-10 h-10 text-slate-300" />
                     </div>
-                    <h3 className="text-slate-900 font-extrabold text-lg">
-                      {searchQuery ? "No results found" : "Empty here"}
+                    <h3 className="text-slate-900 font-extrabold text-xl">
+                      {searchQuery ? "No results found" : "Your library is empty"}
                     </h3>
-                    <p className="text-slate-400 text-sm mt-2 max-w-xs">
+                    <p className="text-slate-500 text-sm mt-2 max-w-sm">
                       {searchQuery
-                        ? `Nothing matched "${searchQuery}"`
-                        : "Add your first bookmark using the form."}
+                        ? `We couldn't find any bookmarks matching "${searchQuery}". Try a different search.`
+                        : "Paste a URL in the bar above to start building your brilliant library."}
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredBookmarks.map((bm) => {
                       const bmCollection = collections.find(
                         (c) => c.id === bm.collection_id,
@@ -1404,7 +1328,6 @@ export default function Dashboard() {
                     })}
                   </div>
                 )}
-              </div>
             </div>
           </div>
         </div>
