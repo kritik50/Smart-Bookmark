@@ -1,0 +1,45 @@
+AI & Technical Terms Glossary for Interviews
+
+=========================================
+1. AI & Machine Learning Terms
+=========================================
+
+1. RAG (Retrieval-Augmented Generation)
+- How we used it: We used RAG to power the Semantic Search. Instead of training an AI on the user's bookmarks (which is expensive and slow), we "Retrieve" the relevant bookmarks from the database using vector math, and we can "Augment" an AI prompt with this data.
+- Interviewer Context: "We didn't fine-tune a model; we implemented a RAG pipeline because it's cheaper, deterministic, and updates in real-time as users add bookmarks."
+
+2. Vector Embeddings
+- What it is: A mathematical representation of text. It's a large array of floating-point numbers (e.g., 768 numbers).
+- How we used it: We pass the bookmark summary to Gemini's embedding model to get a vector. Words with similar meanings have vectors that point in similar directions in a high-dimensional space.
+
+3. Cosine Similarity
+- What it is: A mathematical formula used to measure how similar two vectors are, regardless of their size. 
+- How we used it: In Supabase (pgvector), we use the `<=>` operator, which calculates the cosine distance between the user's search query vector and the bookmark vectors to find the closest semantic match.
+
+4. Hallucination
+- What it is: When an LLM confidently outputs incorrect or fabricated information.
+- How we solved it: Initially, the summarizer only had the "URL" and "Title" and hallucinated summaries. We fixed this by scraping the actual HTML text content and passing it into the prompt context, grounding the AI in factual data.
+
+5. Prompt Engineering & Structured Outputs
+- What it is: Designing the input given to the AI to constrain its output.
+- How we used it: We engineered the prompt to enforce a strict JSON output schema (summaries and tags) rather than conversational markdown.
+
+=========================================
+2. Technical / Engineering Terms
+=========================================
+
+1. Debouncing
+- What it is: A technique to ensure a function is only executed after a certain amount of time has passed since it was last called.
+- How we used it: When typing in the search bar, we wait 600ms after the user stops typing before making the expensive API call to the semantic search endpoint.
+
+2. Web Scraping & DOM Parsing
+- What it is: Programmatically extracting data from websites.
+- How we used it: We used 'cheerio' on the Node.js backend to parse the HTML DOM, extract OpenGraph meta tags, and strip out <script> and <style> tags to get raw readable text for the AI.
+
+3. "God Component" / Monolithic State
+- What it is: An anti-pattern where a single file/component handles too much logic (UI, API calls, state management).
+- How we used it: We identified that the 1,600-line Dashboard component was a God Component and planned a refactor into smaller, modular components to adhere to SOLID principles.
+
+4. RPC (Remote Procedure Call)
+- What it is: Executing a subroutine or function on a remote server.
+- How we used it: We created a custom Postgres function `match_bookmarks` in Supabase, and we call it from our Next.js backend using `supabase.rpc()`.

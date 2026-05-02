@@ -1,0 +1,26 @@
+Project Architecture & Technical Stack
+
+1. The Frontend (Client Layer)
+- Framework: Next.js 15 (App Router) using React 19.
+- Styling: Tailwind CSS v4 for utility-first, rapid UI development.
+- Icons & Animations: Lucide-react for SVG icons and vanilla CSS keyframes for micro-interactions (like the Command Palette pop-in).
+- State Management: React Hooks (useState, useEffect).
+- Routing: Handled by Next.js App Router. The app has a landing page (`/`) and a protected dashboard (`/dashboard`).
+
+2. The Backend (API Layer)
+- Serverless API Routes: Next.js Route Handlers (`app/api/...`) running in a Node.js environment.
+- /api/summarize: Handles web scraping (via Cheerio), OpenGraph metadata extraction, and calls the Gemini API for text summarization, auto-tagging, and vector embedding generation.
+- /api/search: Converts search queries into embeddings and queries the database.
+- /api/save: A webhook endpoint designed to allow external tools (like a Chrome Extension) to post data directly to the user's library.
+
+3. The Database & Authentication (Data Layer)
+- Provider: Supabase (PostgreSQL under the hood).
+- Authentication: Supabase Auth handling Google OAuth login.
+- Realtime: Supabase Realtime (Postgres Changes) streams database updates via WebSockets so the frontend UI updates without refreshing when a bookmark is added externally.
+- pgvector: A Postgres extension that allows us to store 768-dimensional float arrays (embeddings) in a column and perform mathematical similarity searches directly at the database level.
+
+4. The AI Provider
+- Provider: Google Gemini API.
+- Models Used: 
+  - `gemini-2.0-flash-lite`: Used for fast, cost-effective text generation (Summaries and JSON tagging).
+  - `text-embedding-004`: Used to convert text into mathematical vector representations for Semantic Search.

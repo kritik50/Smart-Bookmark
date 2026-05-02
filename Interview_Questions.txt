@@ -1,0 +1,37 @@
+Top 30 Interview Questions for this Project
+
+AI & RAG Questions:
+1. What is Semantic Search and how does it differ from traditional keyword search?
+2. Explain what a Vector Embedding is to a non-technical person.
+3. Why did you choose Gemini over OpenAI for your embedding model?
+4. What is `pgvector` and how does it calculate distance between vectors?
+5. Did you consider Chunking your text before embedding? Why or why not?
+6. How do you handle AI hallucinations in your summarizer?
+7. What is Prompt Engineering? Walk me through the prompt you used for auto-tagging.
+8. How do you force the LLM to return valid JSON instead of markdown?
+9. What happens if the AI model flags the webpage content for safety reasons?
+10. How would you scale the semantic search if you had 10 million bookmarks?
+
+Backend & API Questions:
+11. Why did you use Cheerio for web scraping instead of Puppeteer/Playwright?
+12. How do you bypass CORS when fetching external URLs in your app?
+13. How did you implement timeouts for your API routes to prevent hanging requests?
+14. What are OpenGraph tags and how do you extract them?
+15. Explain how your `/api/save` webhook handles authentication securely.
+16. If a website blocks your scraper (returns 403), what is your fallback mechanism?
+17. How do you manage API rate limits from the Gemini API?
+18. Explain the difference between Next.js Edge runtime and Node runtime. Which did you use for scraping?
+19. How do you handle database migrations for adding `pgvector` columns?
+
+Frontend & React Questions:
+20. Your `page.tsx` was 1,600 lines long. How do you refactor a "God Component"?
+21. What is Debouncing and why is it critical for your search input?
+22. Explain Optimistic UI updates. Did you use them here?
+23. How does Supabase Realtime work under the hood? (WebSockets vs Polling)
+24. How do you handle Drag and Drop in React without an external library?
+25. Explain the `useEffect` dependency array and why it's important in your debounced search.
+26. How did you build the Command Palette (Cmd+K) keyboard event listener?
+27. Why use Tailwind CSS instead of styled-components?
+28. How do you handle loading states (Skeleton screens) while waiting for the database?
+29. If a user loses internet connection, how does your app behave?
+30. How would you implement infinite scrolling if a user had 5,000 bookmarks?

@@ -1,0 +1,32 @@
+Code Explanations (CEO & Senior Engineer Level)
+
+==================================================
+BACKEND: Semantic Search & Embedding Generation
+==================================================
+The CEO/Senior Engineer asks: "How does your semantic search actually work under the hood? Walk me through the code."
+
+Your Explanation:
+"Our semantic search is a two-step pipeline located in our Next.js API routes (/api/search). 
+First, when a user types a query, we send that text string to the Gemini `text-embedding-004` model via a REST POST request. This model maps the semantic meaning of the query into a 768-dimensional vector array. 
+
+Next, we take that vector array and query our Postgres database. We don't use standard SQL SELECTs. Instead, we call a custom Remote Procedure Call (RPC) named `match_bookmarks`. Inside the database, the `pgvector` extension performs a Cosine Similarity calculation (using the `<=>` operator) between the query's vector and the pre-computed vectors of the user's bookmarks. It filters out anything below a 0.5 similarity threshold and returns the top 5 matches in milliseconds. This happens entirely server-side so API keys and database logic are hidden from the client."
+
+==================================================
+FRONTEND: Debounced API Calls & Optimistic UI
+==================================================
+The CEO/Senior Engineer asks: "If the AI takes 1-2 seconds to search, doesn't the UI feel slow or block the user while typing?"
+
+Your Explanation:
+"I solved this using React `useEffect` with a Debounce pattern and hybrid search logic. 
+In the dashboard component, the search input is bound to a `searchQuery` state. If I fired an API call on every keystroke, we would hit API rate limits instantly and waste resources. So, I wrapped the `fetch` call in a `setTimeout` of 600ms. If the user types another letter, the `useEffect` cleanup function calls `clearTimeout`, cancelling the previous request.
+
+While the semantic search API is fetching in the background, the UI immediately filters the bookmarks using standard local string matching (`b.title.includes(query)`). This makes the UI feel instantly responsive (optimistic UI). Once the API returns the semantic IDs, React re-renders the filtered list substituting the local results with the highly-accurate AI results."
+
+==================================================
+BACKEND: Data Pipeline & Cheerio Scraping
+==================================================
+The CEO/Senior Engineer asks: "Why did you build a custom web scraper instead of just passing the URL to the AI?"
+
+Your Explanation:
+"Initially, passing just the URL resulted in severe AI hallucinations—the model would guess the content based on the domain name. To fix this, I built a data ingestion pipeline in `/api/summarize`. 
+When the user submits a URL, our Edge/Node server uses the native `fetch` API with impersonation headers (to bypass basic bot protections). We pipe the raw HTML into `cheerio` (a lean jQuery implementation for Node). I explicitly strip out `<script>`, `<style>`, and `<nav>` tags, leaving only the `<body>` text. I then truncate this to 6,000 characters to stay within context windows and minimize token costs, and pass this high-signal text to the LLM. It guarantees a factual summary and reduces our API spend."

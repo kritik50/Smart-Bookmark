@@ -3,8 +3,10 @@
 import { createClient } from "@/lib/supabase-client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import EditBookmarkModal from "@/app/components/EditBookmarkModal";
 import {
   LogOut,
+  Edit2,
   Plus,
   ExternalLink,
   Trash2,
@@ -62,115 +64,19 @@ interface BookmarkItem {
   created_at: string;
   collection_id?: string | null;
   summary?: string | null;
+  og_image?: string | null;
+  tags?: string[] | null;
 }
 
-const COLLECTION_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#f59e0b",
-  "#10b981",
-  "#3b82f6",
-  "#ef4444",
-  "#14b8a6",
-];
-const COLLECTION_ICONS = ["📁", "🎨", "💻", "📚", "🔖", "⚡", "🎯", "🌟"];
-
-const detectCategory = (url: string) => {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    if (host.includes("youtube") || host.includes("youtu.be"))
-      return {
-        label: "Video",
-        color: "text-red-600",
-        bg: "bg-red-50 border-red-100",
-        icon: Youtube,
-      };
-    if (host.includes("github"))
-      return {
-        label: "Code",
-        color: "text-slate-700",
-        bg: "bg-slate-100 border-slate-200",
-        icon: Github,
-      };
-    if (host.includes("twitter") || host.includes("x.com"))
-      return {
-        label: "Social",
-        color: "text-sky-600",
-        bg: "bg-sky-50 border-sky-100",
-        icon: Twitter,
-      };
-    if (host.includes("pinterest"))
-      return {
-        label: "Design",
-        color: "text-pink-600",
-        bg: "bg-pink-50 border-pink-100",
-        icon: Star,
-      };
-    if (host.includes("spotify") || host.includes("soundcloud"))
-      return {
-        label: "Music",
-        color: "text-emerald-600",
-        bg: "bg-emerald-50 border-emerald-100",
-        icon: Music,
-      };
-    if (host.includes("netflix") || host.includes("primevideo"))
-      return {
-        label: "Watch",
-        color: "text-purple-600",
-        bg: "bg-purple-50 border-purple-100",
-        icon: Film,
-      };
-    if (
-      host.includes("medium") ||
-      host.includes("substack") ||
-      host.includes("dev.to")
-    )
-      return {
-        label: "Article",
-        color: "text-amber-600",
-        bg: "bg-amber-50 border-amber-100",
-        icon: BookOpen,
-      };
-    if (host.includes("amazon") || host.includes("shop"))
-      return {
-        label: "Shop",
-        color: "text-orange-600",
-        bg: "bg-orange-50 border-orange-100",
-        icon: ShoppingBag,
-      };
-    return {
-      label: "Link",
-      color: "text-indigo-600",
-      bg: "bg-indigo-50 border-indigo-100",
-      icon: Globe,
-    };
-  } catch {
-    return {
-      label: "Link",
-      color: "text-indigo-600",
-      bg: "bg-indigo-50 border-indigo-100",
-      icon: Globe,
-    };
-  }
-};
-
-const getFavicon = (urlStr: string) => {
-  try {
-    return `https://www.google.com/s2/favicons?domain=${new URL(urlStr).hostname}&sz=128`;
-  } catch {
-    return "";
-  }
-};
-const getDomain = (urlStr: string) => {
-  try {
-    return new URL(urlStr).hostname.replace("www.", "");
-  } catch {
-    return urlStr;
-  }
-};
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+import BookmarkCard from "@/app/components/BookmarkCard";
+import { 
+  COLLECTION_COLORS, 
+  COLLECTION_ICONS, 
+  detectCategory, 
+  getFavicon, 
+  getDomain, 
+  formatDate 
+} from "@/app/lib/utils";
 
 const SkeletonCard = ({ delay = 0 }: { delay?: number }) => (
   <div
@@ -427,6 +333,9 @@ export default function Dashboard() {
   const [dragOverCollectionId, setDragOverCollectionId] = useState<
     string | null
   >(null);
+  const [isSearchingSemantic, setIsSearchingSemantic] = useState(false);
+  const [semanticSearchIds, setSemanticSearchIds] = useState<string[] | null>(null);
+  const [editingBookmark, setEditingBookmark] = useState<BookmarkItem | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -460,6 +369,34 @@ export default function Dashboard() {
       setDuplicateWarning(null);
     }
   }, [url, bookmarks]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSemanticSearchIds(null);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingSemantic(true);
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery, userId: user?.id })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.results) {
+            setSemanticSearchIds(json.results.map((r: any) => r.id));
+          }
+        }
+      } catch (err) {
+        console.error("Semantic search failed", err);
+      } finally {
+        setIsSearchingSemantic(false);
+      }
+    }, 600);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, user]);
 
   useEffect(() => {
     let channel: any;
@@ -700,9 +637,19 @@ export default function Dashboard() {
       const json = await res.json();
       const summary = json.summary || "Could not generate summary.";
       setSummaries((prev) => ({ ...prev, [bm.id]: summary }));
+      
+      const updates = { 
+        summary, 
+        tags: json.tags || [], 
+        og_image: json.metadata?.ogImage || null,
+        embedding: json.embedding || null
+      };
+
+      setBookmarks(prev => prev.map(b => b.id === bm.id ? { ...b, ...updates } : b));
+
       const { error } = await supabase
         .from("bookmarks")
-        .update({ summary })
+        .update(updates)
         .eq("id", bm.id)
         .eq("user_id", user.id);
       if (error) console.error("Failed to save summary:", error.message);
@@ -740,6 +687,12 @@ export default function Dashboard() {
     await supabase.from("collections").delete().eq("id", id);
     setCollections((p) => p.filter((c) => c.id !== id));
     if (activeCollectionId === id) setActiveCollectionId(null);
+  };
+
+  const handleSaveEdit = async (id: string, updates: Partial<BookmarkItem>) => {
+    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+    const { error } = await supabase.from("bookmarks").update(updates).eq("id", id).eq("user_id", user.id);
+    if (error) console.error("Edit failed", error);
   };
 
   
@@ -815,9 +768,17 @@ export default function Dashboard() {
     ...Array.from(new Set(bookmarks.map((b) => detectCategory(b.url).label))),
   ];
   const filteredBookmarks = bookmarks.filter((b) => {
-    const matchSearch =
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.url.toLowerCase().includes(searchQuery.toLowerCase());
+    let matchSearch = true;
+    if (searchQuery.trim()) {
+      if (semanticSearchIds !== null) {
+        matchSearch = semanticSearchIds.includes(b.id);
+      } else {
+        matchSearch =
+          b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (b.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+      }
+    }
     const matchCat =
       activeFilter === "All" || detectCategory(b.url).label === activeFilter;
     const matchCollection = activeCollectionId
@@ -952,6 +913,14 @@ export default function Dashboard() {
         />
       )}
       {showMobileCollections && <MobileCollectionsModal />}
+      
+      <EditBookmarkModal 
+        bookmark={editingBookmark} 
+        isOpen={!!editingBookmark} 
+        onClose={() => setEditingBookmark(null)} 
+        onSave={handleSaveEdit} 
+        collections={collections} 
+      />
 
       <div className="min-h-screen bg-[#f4f4f8] selection:bg-indigo-500 selection:text-white overflow-x-hidden">
         <div className="fixed inset-0 z-0 pointer-events-none">
@@ -1200,11 +1169,11 @@ export default function Dashboard() {
               </div>
               <div className="relative w-full md:w-80 group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <Search className={`h-4 w-4 transition-colors ${isSearchingSemantic ? "text-indigo-400 animate-pulse" : "text-slate-400 group-focus-within:text-indigo-500"}`} />
                 </div>
                 <input
                   type="text"
-                  placeholder="Search links..."
+                  placeholder="Search semantically (e.g. 'react tutorials')..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full pl-11 pr-10 py-3 bg-white/80 backdrop-blur-md rounded-2xl text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all placeholder:text-slate-400 font-semibold text-sm outline-none"
@@ -1214,7 +1183,7 @@ export default function Dashboard() {
                     onClick={() => setSearchQuery("")}
                     className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                   >
-                    <X className="w-4 h-4" />
+                    {isSearchingSemantic ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <X className="w-4 h-4" />}
                   </button>
                 )}
               </div>
@@ -1417,163 +1386,30 @@ export default function Dashboard() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {filteredBookmarks.map((bm) => {
-                      const cat = detectCategory(bm.url);
-                      const CatIcon = cat.icon;
-                      const isDeleting = deletingId === bm.id;
                       const bmCollection = collections.find(
                         (c) => c.id === bm.collection_id,
                       );
-                      const hasSummary = !!summaries[bm.id];
-                      const isSummarizing = summarizingId === bm.id;
-                      const isExpanded = expandedSummary === bm.id;
 
                       return (
-                        <div
+                        <BookmarkCard
                           key={bm.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, bm.id)}
-                          className={`group relative bg-white/75 backdrop-blur-md border border-white/70 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1.5 hover:border-indigo-200 transition-all duration-300 cursor-pointer active:cursor-grabbing overflow-hidden ${isDeleting ? "card-exit" : ""}`}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-transparent to-violet-50/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl pointer-events-none" />
-                          {bmCollection && (
-                            <div
-                              className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-                              style={{ background: bmCollection.color }}
-                            />
-                          )}
-
-                          <div className="relative flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-11 h-11 bg-white rounded-xl p-2 border border-slate-100 shadow-sm flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-                                <img
-                                  src={getFavicon(bm.url)}
-                                  alt=""
-                                  className="w-6 h-6 object-contain"
-                                  onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).nextElementSibling?.classList.remove(
-                                      "hidden",
-                                    );
-                                  }}
-                                />
-                                <span className="hidden text-base font-extrabold text-indigo-600">
-                                  {bm.title[0]?.toUpperCase()}
-                                </span>
-                              </div>
-                              <span
-                                className={`badge-pop flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${cat.bg} ${cat.color}`}
-                              >
-                                <CatIcon className="w-2.5 h-2.5" />
-                                {cat.label}
-                              </span>
-                            </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
-                              <button
-                                onClick={() => summarizeBookmark(bm)}
-                                className={`p-1.5 rounded-lg transition-all ${hasSummary || isSummarizing ? "text-violet-600 bg-violet-50" : "text-slate-400 hover:text-violet-600 hover:bg-violet-50"}`}
-                                title="AI Summary"
-                              >
-                                {isSummarizing ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <Wand2 className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                              <button
-                                onClick={() => handleCopy(bm.url, bm.id)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                title="Copy URL"
-                              >
-                                {copiedId === bm.id ? (
-                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                              {activeCollectionId && (
-                                <button
-                                  onClick={() => removeFromCollection(bm.id)}
-                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                  title="Remove from this collection"
-                                >
-                                  <FolderOpen className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => deleteBookmark(bm.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="relative">
-                            {bmCollection && (
-                              <div className="flex items-center gap-1 mb-1.5">
-                                <span className="text-xs">
-                                  {bmCollection.icon}
-                                </span>
-                                <span
-                                  className="text-[10px] font-bold"
-                                  style={{ color: bmCollection.color }}
-                                >
-                                  {bmCollection.name}
-                                </span>
-                              </div>
-                            )}
-                            <h3 className="font-bold text-slate-900 text-base truncate mb-1 group-hover:text-indigo-700 transition-colors">
-                              {bm.title}
-                            </h3>
-                            <p className="text-[11px] font-mono text-slate-400 truncate mb-1">
-                              {getDomain(bm.url)}
-                            </p>
-                            <p className="text-[10px] text-slate-300 font-medium mb-4">
-                              {formatDate(bm.created_at)}
-                            </p>
-
-                            {isExpanded && (
-                              <div className="summary-in mb-4 p-3 bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-xl">
-                                <div className="flex items-center gap-1.5 mb-2">
-                                  <Wand2 className="w-3 h-3 text-violet-500" />
-                                  <span className="text-[10px] font-bold text-violet-600 uppercase tracking-widest">
-                                    AI Summary
-                                  </span>
-                                </div>
-                                {isSummarizing ? (
-                                  <div className="space-y-2">
-                                    <div className="h-2.5 bg-violet-100 rounded animate-pulse w-full" />
-                                    <div className="h-2.5 bg-violet-100 rounded animate-pulse w-4/5" />
-                                    <div className="h-2.5 bg-violet-100 rounded animate-pulse w-3/5" />
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                                    {summaries[bm.id]}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            <a
-                              href={bm.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group/btn inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2.5 rounded-xl w-full justify-center hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-lg transition-all duration-200"
-                            >
-                              Visit Website
-                              <ArrowUpRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-                            </a>
-                          </div>
-
-                          <div
-                            className={`absolute bottom-0 right-0 w-14 h-14 rounded-tl-[36px] opacity-20 group-hover:opacity-50 transition-opacity ${cat.bg}`}
-                          />
-                        </div>
+                          bm={bm}
+                          bmCollection={bmCollection}
+                          hasSummary={!!summaries[bm.id]}
+                          isSummarizing={summarizingId === bm.id}
+                          isExpanded={expandedSummary === bm.id}
+                          isDeleting={deletingId === bm.id}
+                          copiedId={copiedId}
+                          summaries={summaries}
+                          onDragStart={handleDragStart}
+                          onSummarize={() => summarizeBookmark(bm)}
+                          onCopy={() => handleCopy(bm.url, bm.id)}
+                          onRemoveFromCollection={
+                            activeCollectionId ? () => removeFromCollection(bm.id) : undefined
+                          }
+                          onEdit={() => setEditingBookmark(bm)}
+                          onDelete={() => deleteBookmark(bm.id)}
+                        />
                       );
                     })}
                   </div>

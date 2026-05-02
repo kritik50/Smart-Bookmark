@@ -1,0 +1,21 @@
+Project Name: SmartMark (Intelligent Bookmark Manager)
+
+1. High-Level Overview
+SmartMark is a modern, AI-powered bookmarking application designed to solve the problem of digital clutter. Traditional bookmark managers require users to manually input titles, organize into folders, and rely on exact keywords to find old links. SmartMark completely automates this workflow using Retrieval-Augmented Generation (RAG) and Web Scraping.
+
+2. Core Features Explained
+
+A. Automated Web Scraping & Metadata Extraction
+When a user pastes a URL, the system does not just save the link. The backend (Node.js/Next.js API) reaches out to the target website, fetches the raw HTML, and extracts critical OpenGraph metadata (og:image, og:title, og:description). This transforms boring text links into a highly visual, Pinterest-style grid layout.
+
+B. AI-Powered Summarization & Auto-Tagging
+The extracted raw HTML is cleaned (removing ads, scripts, and navbars) and sent to Google's Gemini 2.0 Flash model. The AI reads the actual content of the article and returns a concise, two-sentence summary along with an array of 3-5 highly relevant categorization tags. This completely eliminates manual data entry.
+
+C. Semantic Search (RAG Architecture)
+Instead of relying on exact keyword matching, SmartMark uses Vector Embeddings to allow users to search by "meaning". If a user searches for "frontend frameworks", the system embeds this query and performs a Cosine Similarity mathematical search against the saved bookmarks. It will successfully retrieve an article titled "Learn React" because the semantic meaning matches, even if the keywords do not.
+
+D. Real-time Synchronization
+Powered by Supabase's Realtime PostgreSQL subscriptions, the frontend dashboard updates instantly across all devices without requiring a page refresh when a new bookmark is added via the browser extension or another device.
+
+E. Visual Command Palette
+A macOS Spotlight-style command palette (accessible via Cmd+K) allows power users to navigate their library, trigger semantic searches, and organize collections entirely via keyboard shortcuts.
