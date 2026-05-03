@@ -1,33 +1,32 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 
 export default function AuthCallback() {
-  const router = useRouter();
-
   useEffect(() => {
     const handleAuth = async () => {
       const supabase = createClient();
+      
+      // Critical: Exchange the auth code for a session
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
         console.error("Auth error:", error);
-        router.push("/");
+        window.location.href = "/";
         return;
       }
 
       if (session) {
-        await new Promise(r => setTimeout(r, 100));
-        router.replace("/dashboard");
+        // Use window.location for reliable mobile navigation
+        window.location.href = "/dashboard";
       } else {
-        router.push("/");
+        window.location.href = "/";
       }
     };
 
     handleAuth();
-  }, [router]);
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">
