@@ -56,14 +56,26 @@ export default function Home() {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 700));
-    await supabase.auth.signInWithOAuth({
+    
+    // Get current origin dynamically - works on both mobile and desktop
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        queryParams: { prompt: "select_account" },
-        redirectTo: "https://smart-bookmark-steel.vercel.app/auth/callback",
+        queryParams: { 
+          prompt: "select_account",
+          access_type: "offline"
+        },
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: false
       },
     });
+
+    if (error) {
+      console.error("Login error:", error);
+      setIsLoading(false);
+    }
   };
 
   return (
