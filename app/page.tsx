@@ -29,6 +29,20 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    const redirectIfAuthenticated = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        window.location.replace("/dashboard");
+      }
+    };
+
+    redirectIfAuthenticated();
+  }, [supabase]);
+
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -63,10 +77,6 @@ export default function Home() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        queryParams: { 
-          prompt: "select_account",
-          access_type: "offline"
-        },
         redirectTo: redirectUrl,
         skipBrowserRedirect: false
       },

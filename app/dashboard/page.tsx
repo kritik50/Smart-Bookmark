@@ -1,345 +1,97 @@
+// Dashboard — Main page orchestrator
+// Reduced from 1,627 lines to ~200 lines by extracting hooks and components.
+
 "use client";
 
 import { createClient } from "@/lib/supabase-client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
+
+// Hooks
+import { useBookmarks } from "@/app/hooks/useBookmarks";
+import { useCollections } from "@/app/hooks/useCollections";
+import { useSemanticSearch } from "@/app/hooks/useSemanticSearch";
+
+// Components
+import DashboardNav from "./components/DashboardNav";
+import Sidebar from "./components/Sidebar";
+import BookmarkGrid from "./components/BookmarkGrid";
+import CommandPalette from "./components/CommandPalette";
+import QuickSaveModal from "./components/QuickSaveModal";
+import MobileCollections from "./components/MobileCollections";
 import EditBookmarkModal from "@/app/components/EditBookmarkModal";
-import {
-  LogOut,
-  Edit2,
-  Plus,
-  ExternalLink,
-  Trash2,
-  Zap,
-  LayoutGrid,
-  Search,
-  Loader2,
-  Copy,
-  Check,
-  TrendingUp,
-  Clock,
-  Youtube,
-  Globe,
-  Github,
-  Twitter,
-  BookOpen,
-  ShoppingBag,
-  Music,
-  Film,
-  Code2,
-  Coffee,
-  Flame,
-  Sparkles,
-  ChevronRight,
-  X,
-  ArrowUpRight,
-  FolderPlus,
-  Folder,
-  FolderOpen,
-  Hash,
-  Command,
-  AlertTriangle,
-  Wand2,
-  ChevronDown,
-  GripVertical,
-  Star,
-  Bookmark,
-  AlignLeft,
-  CheckCircle2,
-} from "lucide-react";
 
-interface Collection {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-  user_id: string;
-  created_at: string;
-}
-interface BookmarkItem {
-  id: string;
-  title: string;
-  url: string;
-  user_id: string;
-  created_at: string;
-  collection_id?: string | null;
-  summary?: string | null;
-  og_image?: string | null;
-  tags?: string[] | null;
-}
-
-import BookmarkCard from "@/app/components/BookmarkCard";
-import { 
-  COLLECTION_COLORS, 
-  COLLECTION_ICONS, 
-  detectCategory, 
-  getFavicon, 
-  getDomain, 
-  formatDate 
-} from "@/app/lib/utils";
-
-const SkeletonCard = ({ delay = 0 }: { delay?: number }) => (
-  <div
-    className="bg-white/60 border border-white/60 rounded-2xl p-5 animate-pulse"
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    <div className="flex justify-between items-start mb-4">
-      <div className="w-12 h-12 bg-slate-200 rounded-xl" />
-      <div className="w-16 h-5 bg-slate-200 rounded-full" />
-    </div>
-    <div className="h-4 bg-slate-200 rounded-lg w-3/4 mb-2" />
-    <div className="h-3 bg-slate-100 rounded-lg w-full mb-5" />
-    <div className="h-9 bg-slate-100 rounded-xl w-full" />
-  </div>
-);
-
-const CommandPalette = ({
-  bookmarks,
-  collections,
-  onClose,
-  onOpen,
-  onAddNew,
-}: {
-  bookmarks: BookmarkItem[];
-  collections: Collection[];
-  onClose: () => void;
-  onOpen: (url: string) => void;
-  onAddNew: () => void;
-}) => {
-  const [query, setQuery] = useState("");
-  const [cursor, setCursor] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const results = query.trim()
-    ? bookmarks
-        .filter(
-          (b) =>
-            b.title.toLowerCase().includes(query.toLowerCase()) ||
-            b.url.toLowerCase().includes(query.toLowerCase()),
-        )
-        .slice(0, 8)
-    : bookmarks.slice(0, 6);
-  const actions = [{ label: "Add new bookmark", icon: Plus, action: onAddNew }];
-  const allItems = [
-    ...results.map((r) => ({ type: "bookmark", data: r })),
-    ...actions.map((a) => ({ type: "action", data: a })),
-  ];
-  useEffect(() => {
-    setCursor(0);
-  }, [query]);
-
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setCursor((c) => Math.min(c + 1, allItems.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setCursor((c) => Math.max(c - 1, 0));
-    }
-    if (e.key === "Escape") {
-      onClose();
-    }
-    if (e.key === "Enter") {
-      const item = allItems[cursor];
-      if (!item) return;
-      if (item.type === "bookmark") {
-        onOpen((item.data as BookmarkItem).url);
-        onClose();
-      } else {
-        (item.data as any).action();
-        onClose();
-      }
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
-      onClick={onClose}
-    >
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-      <div
-        className="relative w-full max-w-xl mx-4 bg-white rounded-2xl shadow-2xl shadow-slate-900/30 border border-slate-200 overflow-hidden cmd-palette-in"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKey}
-      >
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-100">
-          <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search bookmarks or type a command..."
-            className="flex-1 text-slate-900 placeholder:text-slate-400 outline-none text-sm font-semibold bg-transparent"
-          />
-          <kbd className="px-2 py-1 text-[10px] font-bold text-slate-400 bg-slate-100 rounded-md border border-slate-200">
-            ESC
-          </kbd>
-        </div>
-        <div className="max-h-80 overflow-y-auto py-2">
-          {results.length > 0 && (
-            <>
-              <div className="px-4 py-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Bookmarks
-                </span>
-              </div>
-              {results.map((bm, i) => {
-                const cat = detectCategory(bm.url);
-                const CatIcon = cat.icon;
-                const isCursor = cursor === i;
-                return (
-                  <button
-                    key={bm.id}
-                    onClick={() => {
-                      onOpen(bm.url);
-                      onClose();
-                    }}
-                    onMouseEnter={() => setCursor(i)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${isCursor ? "bg-indigo-50" : "hover:bg-slate-50"}`}
-                  >
-                    <img
-                      src={getFavicon(bm.url)}
-                      className="w-5 h-5 rounded"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-bold truncate ${isCursor ? "text-indigo-700" : "text-slate-800"}`}
-                      >
-                        {bm.title}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate font-mono">
-                        {getDomain(bm.url)}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cat.bg} ${cat.color}`}
-                    >
-                      {cat.label}
-                    </span>
-                    {isCursor && (
-                      <ArrowUpRight className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </>
-          )}
-          <div className="px-4 py-1.5 mt-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Actions
-            </span>
-          </div>
-          {actions.map((action, i) => {
-            const idx = results.length + i;
-            const isCursor = cursor === idx;
-            return (
-              <button
-                key={action.label}
-                onClick={() => {
-                  action.action();
-                  onClose();
-                }}
-                onMouseEnter={() => setCursor(idx)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${isCursor ? "bg-indigo-50" : "hover:bg-slate-50"}`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center ${isCursor ? "bg-indigo-100" : "bg-slate-100"}`}
-                >
-                  <action.icon
-                    className={`w-3.5 h-3.5 ${isCursor ? "text-indigo-600" : "text-slate-500"}`}
-                  />
-                </div>
-                <span
-                  className={`text-sm font-bold ${isCursor ? "text-indigo-700" : "text-slate-700"}`}
-                >
-                  {action.label}
-                </span>
-              </button>
-            );
-          })}
-          {query && results.length === 0 && (
-            <div className="px-4 py-8 text-center">
-              <p className="text-slate-400 text-sm font-medium">
-                No bookmarks found for "{query}"
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-          {[
-            ["↑↓", "navigate"],
-            ["↵", "open"],
-            ["esc", "close"],
-          ].map(([key, label]) => (
-            <div key={key} className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 text-[10px] font-bold text-slate-500 bg-white rounded border border-slate-200">
-                {key}
-              </kbd>
-              <span className="text-[10px] text-slate-400 font-medium">
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+import { detectCategory } from "@/app/lib/utils";
+import type { Bookmark } from "@/types";
 
 export default function Dashboard() {
   const supabase = createClient();
   const router = useRouter();
 
-  const [showMobileCollections, setShowMobileCollections] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<
-    string | null
-  >(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string>("All");
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
-    null,
-  );
-  const [animatedCards, setAnimatedCards] = useState<Set<string>>(new Set());
+  // ── Auth state ──────────────────────────────────────────────────────────────
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+
+  // ── Hooks ───────────────────────────────────────────────────────────────────
+  const bm = useBookmarks(user?.id ?? null);
+  const col = useCollections(user?.id ?? null);
+  const search = useSemanticSearch(user?.id ?? null);
+
+  // ── UI state ────────────────────────────────────────────────────────────────
   const [showCmdPalette, setShowCmdPalette] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState<BookmarkItem | null>(
-    null,
-  );
-  const [summarizingId, setSummarizingId] = useState<string | null>(null);
-  const [summaries, setSummaries] = useState<Record<string, string>>({});
-  const [expandedSummary, setExpandedSummary] = useState<string | null>(null);
-  const [newCollectionName, setNewCollectionName] = useState("");
-  const [newCollectionColor, setNewCollectionColor] = useState(
-    COLLECTION_COLORS[0],
-  );
-  const [newCollectionIcon, setNewCollectionIcon] = useState(
-    COLLECTION_ICONS[0],
-  );
-  const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
-  const [dragOverCollectionId, setDragOverCollectionId] = useState<
-    string | null
-  >(null);
-  const [isSearchingSemantic, setIsSearchingSemantic] = useState(false);
-  const [semanticSearchIds, setSemanticSearchIds] = useState<string[] | null>(null);
-  const [editingBookmark, setEditingBookmark] = useState<BookmarkItem | null>(null);
+  const [showMobileCollections, setShowMobileCollections] = useState(false);
+  const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [dragOverCollectionId, setDragOverCollectionId] = useState<string | null>(null);
 
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  // Quick Save Modal
+  const [showQuickSaveModal, setShowQuickSaveModal] = useState(false);
+  const [quickSaveUrl, setQuickSaveUrl] = useState("");
+  const [quickSaveTitle, setQuickSaveTitle] = useState("");
+  const [quickSaveCollectionId, setQuickSaveCollectionId] = useState<string | null>(null);
 
+  // ── Init: auth + data fetching + realtime ───────────────────────────────────
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const init = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        router.push("/");
+        return;
+      }
+      setUser(data.user);
+
+      await Promise.all([
+        bm.fetchBookmarks(data.user.id),
+        col.fetchCollections(data.user.id),
+      ]);
+
+      // Set up real-time subscription
+      channel = supabase
+        .channel(`bm-rt-${data.user.id}`)
+        .on(
+          "postgres_changes" as any,
+          {
+            event: "*",
+            schema: "public",
+            table: "bookmarks",
+            filter: `user_id=eq.${data.user.id}`,
+          },
+          bm.handleRealtimeUpdate
+        )
+        .subscribe();
+    };
+
+    init();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Global keyboard shortcut (Ctrl+K) ──────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -351,370 +103,50 @@ export default function Dashboard() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // ── Global paste listener (paste URL outside inputs → Quick Save) ──────────
   useEffect(() => {
-    if (!url.trim()) {
-      setDuplicateWarning(null);
-      return;
-    }
-    try {
-      const normalized = new URL(url).href;
-      const dup = bookmarks.find((b) => {
-        try {
-          return new URL(b.url).href === normalized;
-        } catch {
-          return false;
-        }
-      });
-      setDuplicateWarning(dup || null);
-    } catch {
-      setDuplicateWarning(null);
-    }
-  }, [url, bookmarks]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSemanticSearchIds(null);
-      return;
-    }
-    const delayDebounceFn = setTimeout(async () => {
-      setIsSearchingSemantic(true);
-      try {
-        const res = await fetch("/api/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: searchQuery, userId: user?.id })
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.results) {
-            setSemanticSearchIds(json.results.map((r: any) => r.id));
-          }
-        }
-      } catch (err) {
-        console.error("Semantic search failed", err);
-      } finally {
-        setIsSearchingSemantic(false);
-      }
-    }, 600);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, user]);
-
-  useEffect(() => {
-    let channel: any;
-    const init = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        router.push("/");
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tag = target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target.isContentEditable)
         return;
-      }
-      setUser(data.user);
-      await Promise.all([
-        fetchBookmarks(data.user.id),
-        fetchCollections(data.user.id),
-      ]);
-      channel = supabase
-        .channel(`bm-rt-${data.user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "bookmarks",
-            filter: `user_id=eq.${data.user.id}`,
-          },
-          handleRealtimeUpdate,
-        )
-        .subscribe();
+
+      const pasted = e.clipboardData?.getData("text")?.trim() || "";
+      if (!pasted || !/^https?:\/\/.{3,}/.test(pasted)) return;
+
+      e.preventDefault();
+      openQuickSave(pasted);
     };
-    init();
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, []);
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCollectionId]);
 
-  
-  const MobileCollectionsModal = () => (
-    <div
-      className="lg:hidden fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm"
-      onClick={() => setShowMobileCollections(false)}
-    >
-      <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-extrabold text-slate-900">Collections</h3>
-          <button
-            onClick={() => setShowMobileCollections(false)}
-            className="p-2 hover:bg-slate-100 rounded-xl"
-          >
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
-        </div>
-
-        <button
-          onClick={() => {
-            setActiveCollectionId(null);
-            setShowMobileCollections(false);
-          }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold mb-3 ${activeCollectionId === null ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-        >
-          <Bookmark className="w-4 h-4" />
-          All Bookmarks
-          <span className="ml-auto text-xs">{bookmarks.length}</span>
-        </button>
-
-        <div className="space-y-2">
-          {collections.map((col) => (
-            <button
-              key={col.id}
-              onClick={() => {
-                setActiveCollectionId(col.id);
-                setShowMobileCollections(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold ${activeCollectionId === col.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-            >
-              <span className="text-lg">{col.icon}</span>
-              <span className="flex-1 text-left truncate">{col.name}</span>
-              <span className="text-xs">
-                {bookmarks.filter((b) => b.collection_id === col.id).length}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => {
-            setShowNewCollectionForm(true);
-            setShowMobileCollections(false);
-          }}
-          className="w-full mt-4 flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-3 rounded-xl"
-        >
-          <FolderPlus className="w-4 h-4" />
-          New Collection
-        </button>
-      </div>
-    </div>
+  // ── Quick Save helpers ──────────────────────────────────────────────────────
+  const openQuickSave = useCallback(
+    (url: string) => {
+      const domain = (() => {
+        try {
+          return new URL(url).hostname.replace("www.", "");
+        } catch {
+          return url;
+        }
+      })();
+      setQuickSaveUrl(url);
+      setQuickSaveTitle(domain);
+      setQuickSaveCollectionId(selectedCollectionId);
+      setShowQuickSaveModal(true);
+    },
+    [selectedCollectionId]
   );
 
-  const handleRealtimeUpdate = (payload: any) => {
-    if (payload.eventType === "INSERT")
-      setBookmarks((prev) =>
-        prev.find((b) => b.id === payload.new.id)
-          ? prev
-          : [payload.new, ...prev],
-      );
-    else if (payload.eventType === "DELETE")
-      setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id));
-    else if (payload.eventType === "UPDATE")
-      setBookmarks((prev) =>
-        prev.map((b) =>
-          b.id === payload.new.id ? { ...b, ...payload.new } : b,
-        ),
-      );
-  };
+  const handleQuickSave = useCallback(() => {
+    if (!quickSaveTitle.trim() || !quickSaveUrl.trim()) return;
+    bm.addBookmark(quickSaveTitle, quickSaveUrl, quickSaveCollectionId);
+    setShowQuickSaveModal(false);
+  }, [quickSaveTitle, quickSaveUrl, quickSaveCollectionId, bm]);
 
-  const fetchBookmarks = async (userId: string) => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("bookmarks")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (!error && data) {
-      setBookmarks(data);
-      const stored: Record<string, string> = {};
-      data.forEach((b: BookmarkItem) => {
-        if (b.summary) stored[b.id] = b.summary;
-      });
-      setSummaries(stored);
-    }
-    setLoading(false);
-  };
-
-  const fetchCollections = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("collections")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true });
-    if (error) console.error("fetchCollections error:", error);
-    if (data) setCollections(data);
-  };
-
-  const addBookmark = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !url) return;
-    setIsSubmitting(true);
-    const tempId = `temp-${Date.now()}`;
-    const newBm: BookmarkItem = {
-      id: tempId,
-      title,
-      url,
-      user_id: user.id,
-      created_at: new Date().toISOString(),
-      collection_id: selectedCollectionId,
-    };
-    setBookmarks((prev) => [newBm, ...prev]);
-    requestAnimationFrame(() =>
-      setAnimatedCards((p) => new Set([...p, tempId])),
-    );
-    const t = title,
-      u = url,
-      cid = selectedCollectionId;
-    setTitle("");
-    setUrl("");
-    setDuplicateWarning(null);
-    const { data, error } = await supabase
-      .from("bookmarks")
-      .insert([{ title: t, url: u, user_id: user.id, collection_id: cid }])
-      .select()
-      .single();
-    if (error) {
-      setBookmarks((prev) => prev.filter((b) => b.id !== tempId));
-      toast.error("Failed to save bookmark.");
-    } else {
-      setBookmarks((prev) => prev.map((b) => (b.id === tempId ? data : b)));
-      setAnimatedCards((p) => {
-        const s = new Set(p);
-        s.delete(tempId);
-        s.add(data.id);
-        return s;
-      });
-      toast.success("Bookmark saved to library!");
-    }
-    setIsSubmitting(false);
-  };
-
-  const deleteBookmark = async (id: string) => {
-    setDeletingId(id);
-    await new Promise((r) => setTimeout(r, 280));
-    const prev = [...bookmarks];
-    setBookmarks((b) => b.filter((x) => x.id !== id));
-    setAnimatedCards((s) => {
-      const n = new Set(s);
-      n.delete(id);
-      return n;
-    });
-    setDeletingId(null);
-    const { error } = await supabase
-      .from("bookmarks")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-    if (error) {
-      setBookmarks(prev);
-      toast.error("Failed to delete bookmark.");
-    } else {
-      toast.success("Bookmark deleted");
-    }
-  };
-
-  const removeFromCollection = async (bookmarkId: string) => {
-    setBookmarks((prev) =>
-      prev.map((b) =>
-        b.id === bookmarkId ? { ...b, collection_id: null } : b,
-      ),
-    );
-
-    const { error } = await supabase
-      .from("bookmarks")
-      .update({ collection_id: null })
-      .eq("id", bookmarkId)
-      .eq("user_id", user.id);
-
-    if (error) {
-      console.error("Remove from collection error:", error);
-      fetchBookmarks(user.id);
-    }
-  };
-
-  const summarizeBookmark = async (bm: BookmarkItem) => {
-    if (summaries[bm.id]) {
-      setExpandedSummary(expandedSummary === bm.id ? null : bm.id);
-      return;
-    }
-    setSummarizingId(bm.id);
-    setExpandedSummary(bm.id);
-    try {
-      const res = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: bm.url, title: bm.title }),
-      });
-      const json = await res.json();
-      const summary = json.summary || "Could not generate summary.";
-      setSummaries((prev) => ({ ...prev, [bm.id]: summary }));
-      
-      const updates = { 
-        summary, 
-        tags: json.tags || [], 
-        og_image: json.metadata?.ogImage || null,
-        embedding: json.embedding || null
-      };
-
-      setBookmarks(prev => prev.map(b => b.id === bm.id ? { ...b, ...updates } : b));
-
-      const { error } = await supabase
-        .from("bookmarks")
-        .update(updates)
-        .eq("id", bm.id)
-        .eq("user_id", user.id);
-      if (error) {
-        console.error("Failed to save summary:", error.message);
-        toast.error("Failed to save AI summary.");
-      } else {
-        toast.success("AI Summary & Auto-tags generated!");
-      }
-    } catch (err) {
-      setSummaries((prev) => ({
-        ...prev,
-        [bm.id]: "Failed to fetch summary.",
-      }));
-      toast.error("AI service error.");
-    }
-    setSummarizingId(null);
-  };
-
-  const createCollection = async () => {
-    if (!newCollectionName.trim()) return;
-    const { data } = await supabase
-      .from("collections")
-      .insert([
-        {
-          name: newCollectionName,
-          color: newCollectionColor,
-          icon: newCollectionIcon,
-          user_id: user.id,
-        },
-      ])
-      .select()
-      .single();
-    if (data) {
-      setCollections((p) => [...p, data]);
-      setNewCollectionName("");
-      setShowNewCollectionForm(false);
-    }
-  };
-
-  const deleteCollection = async (id: string) => {
-    await supabase.from("collections").delete().eq("id", id);
-    setCollections((p) => p.filter((c) => c.id !== id));
-    if (activeCollectionId === id) setActiveCollectionId(null);
-  };
-
-  const handleSaveEdit = async (id: string, updates: Partial<BookmarkItem>) => {
-    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-    const { error } = await supabase.from("bookmarks").update(updates).eq("id", id).eq("user_id", user.id);
-    if (error) {
-      console.error("Edit failed", error);
-      toast.error("Failed to edit bookmark.");
-    } else {
-      toast.success("Bookmark updated successfully!");
-    }
-  };
-
-  
+  // ── Drag-and-drop handlers ─────────────────────────────────────────────────
   const handleDragStart = (e: React.DragEvent, bookmarkId: string) => {
     e.dataTransfer.setData("bookmarkId", bookmarkId);
     e.dataTransfer.effectAllowed = "move";
@@ -726,610 +158,181 @@ export default function Dashboard() {
     setDragOverCollectionId(targetId);
   };
 
-
   const handleDragLeave = (e: React.DragEvent) => {
-    if (!(e.currentTarget as Node).contains(e.relatedTarget as Node)) {
+    if (
+      !(e.currentTarget as Node).contains(e.relatedTarget as Node)
+    ) {
       setDragOverCollectionId(null);
     }
   };
 
-  
-  const handleDrop = async (e: React.DragEvent, collectionId: string) => {
+  const handleDropToCollection = async (
+    e: React.DragEvent,
+    collectionId: string
+  ) => {
     e.preventDefault();
     setDragOverCollectionId(null);
     const bookmarkId = e.dataTransfer.getData("bookmarkId");
-    if (!bookmarkId) return;
-
-    
-    setBookmarks((prev) =>
-      prev.map((b) =>
-        b.id === bookmarkId ? { ...b, collection_id: collectionId } : b,
-      ),
-    );
-
-    const { error } = await supabase
-      .from("bookmarks")
-      .update({ collection_id: collectionId })
-      .eq("id", bookmarkId)
-      .eq("user_id", user.id);
-    if (error) {
-      console.error("Drop error:", error.message);
-      
-      setBookmarks((prev) =>
-        prev.map((b) =>
-          b.id === bookmarkId ? { ...b, collection_id: null } : b,
-        ),
-      );
-    }
+    if (bookmarkId) bm.moveToCollection(bookmarkId, collectionId);
   };
 
-  
   const handleDropRemoveCollection = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverCollectionId(null);
     const bookmarkId = e.dataTransfer.getData("bookmarkId");
-    if (!bookmarkId) return;
-
-    setBookmarks((prev) =>
-      prev.map((b) =>
-        b.id === bookmarkId ? { ...b, collection_id: null } : b,
-      ),
-    );
-    await supabase
-      .from("bookmarks")
-      .update({ collection_id: null })
-      .eq("id", bookmarkId)
-      .eq("user_id", user.id);
+    if (bookmarkId) bm.removeFromCollection(bookmarkId);
   };
 
-  const categories = [
-    "All",
-    ...Array.from(new Set(bookmarks.map((b) => detectCategory(b.url).label))),
-  ];
-  const filteredBookmarks = bookmarks.filter((b) => {
+  // ── Filtering logic ────────────────────────────────────────────────────────
+  const filteredBookmarks = bm.bookmarks.filter((b) => {
+    // Search filter
     let matchSearch = true;
-    if (searchQuery.trim()) {
-      if (semanticSearchIds !== null) {
-        matchSearch = semanticSearchIds.includes(b.id);
+    if (search.searchQuery.trim()) {
+      if (search.semanticSearchIds !== null) {
+        matchSearch = search.semanticSearchIds.includes(b.id);
       } else {
+        const q = search.searchQuery.toLowerCase();
         matchSearch =
-          b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          b.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (b.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+          b.title.toLowerCase().includes(q) ||
+          b.url.toLowerCase().includes(q) ||
+          (b.summary?.toLowerCase().includes(q) ?? false);
       }
     }
+
+    // Category filter
     const matchCat =
       activeFilter === "All" || detectCategory(b.url).label === activeFilter;
-    const matchCollection = activeCollectionId
-      ? b.collection_id === activeCollectionId
+
+    // Collection filter
+    const matchCollection = col.activeCollectionId
+      ? b.collection_id === col.activeCollectionId
       : true;
+
     return matchSearch && matchCat && matchCollection;
   });
 
+  // ── Logout ─────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
-        * { font-family: 'Bricolage Grotesque', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace !important; }
-
-        @keyframes card-in  { from { opacity:0; transform:translateY(18px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes card-out { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(0.88) translateY(-6px); } }
-        @keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        @keyframes float    { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(1.5deg)} }
-        @keyframes badge-pop{ 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
-        @keyframes warn-in  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes summary-in { from{opacity:0;transform:scaleY(0.8);transform-origin:top} to{opacity:1;transform:scaleY(1)} }
-        @keyframes cmd-in   { from{opacity:0;transform:translateY(-12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-
-        .card-enter  { animation: card-in  0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        .card-exit   { animation: card-out 0.28s cubic-bezier(0.55,0,1,0.45) forwards; }
-        .badge-pop   { animation: badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        .warn-in     { animation: warn-in 0.3s ease-out forwards; }
-        .summary-in  { animation: summary-in 0.3s ease-out forwards; }
-        .cmd-palette-in { animation: cmd-in 0.25s cubic-bezier(0.22,1,0.36,1) forwards; }
-        .float-icon  { animation: float 4s ease-in-out infinite; }
-        .shimmer-text { background:linear-gradient(90deg,#6366f1,#a855f7,#ec4899,#6366f1); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3s linear infinite; }
-
-        /* ✅ Drop target highlight */
-        .drop-target { transition: all 0.15s ease; border-radius: 0.75rem; }
-        .drop-target.is-dragging-over {
-          background: rgba(99,102,241,0.1) !important;
-          outline: 2px dashed #6366f1;
-          outline-offset: 1px;
-          transform: scale(1.02);
-        }
-
-        ::-webkit-scrollbar { width:5px; }
-        ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:#c7d2fe; border-radius:10px; }
-
-        /* ADD THIS TO YOUR <style> TAG RIGHT AFTER THE ANIMATIONS */
-
-/* Mobile Responsive Fixes */
-@media (max-width: 1023px) {
-  /* Hide sidebar on mobile */
-  aside {
-    display: none !important;
-  }
-  
-  /* Full width main content */
-  .flex-1.min-w-0 {
-    width: 100% !important;
-  }
-  
-  /* Single column layout */
-  .lg\:grid-cols-12 {
-    grid-template-columns: 1fr !important;
-  }
-  
-  .lg\:col-span-4,
-  .lg\:col-span-8 {
-    grid-column: span 1 !important;
-  }
-  
-  /* Remove sticky positioning on mobile */
-  .lg\:col-span-4 .sticky {
-    position: static !important;
-  }
-  
-  /* Single column cards */
-  .sm\:grid-cols-2 {
-    grid-template-columns: 1fr !important;
-  }
-  
-  /* Adjust spacing */
-  .max-w-\[1400px\] {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-  }
-}
-
-@media (max-width: 640px) {
-  /* Smaller headings */
-  h1 {
-    font-size: 1.875rem !important;
-  }
-  
-  /* Compact navbar */
-  nav .text-xl {
-    font-size: 1.125rem !important;
-  }
-  
-  /* Hide user email on very small screens */
-  .hidden.sm\:flex {
-    display: none !important;
-  }
-}
-
-@keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-.animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.22,1,0.36,1); }
-      `}</style>
-
+      {/* Modals */}
       {showCmdPalette && (
         <CommandPalette
-          bookmarks={bookmarks}
-          collections={collections}
+          bookmarks={bm.bookmarks}
+          collections={col.collections}
           onClose={() => setShowCmdPalette(false)}
           onOpen={(url) => window.open(url, "_blank")}
-          onAddNew={() => {
-            setShowCmdPalette(false);
-            titleInputRef.current?.focus();
-          }}
+          onAddNew={() => setShowCmdPalette(false)}
         />
       )}
-      {showMobileCollections && <MobileCollectionsModal />}
-      
-      <EditBookmarkModal 
-        bookmark={editingBookmark} 
-        isOpen={!!editingBookmark} 
-        onClose={() => setEditingBookmark(null)} 
-        onSave={handleSaveEdit} 
-        collections={collections} 
+
+      {showMobileCollections && (
+        <MobileCollections
+          collections={col.collections}
+          bookmarks={bm.bookmarks}
+          activeCollectionId={col.activeCollectionId}
+          onSelectCollection={col.setActiveCollectionId}
+          onNewCollection={() => col.setShowNewCollectionForm(true)}
+          onClose={() => setShowMobileCollections(false)}
+        />
+      )}
+
+      {showQuickSaveModal && (
+        <QuickSaveModal
+          url={quickSaveUrl}
+          title={quickSaveTitle}
+          collectionId={quickSaveCollectionId}
+          collections={col.collections}
+          bookmarks={bm.bookmarks}
+          onTitleChange={setQuickSaveTitle}
+          onCollectionChange={setQuickSaveCollectionId}
+          onSave={handleQuickSave}
+          onClose={() => setShowQuickSaveModal(false)}
+        />
+      )}
+
+      <EditBookmarkModal
+        bookmark={editingBookmark}
+        isOpen={!!editingBookmark}
+        onClose={() => setEditingBookmark(null)}
+        onSave={bm.updateBookmark}
+        collections={col.collections}
       />
 
+      {/* Page */}
       <div className="min-h-screen bg-[#fafafa] selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+        {/* Background decorations */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
           <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-400 opacity-[0.08] blur-[100px]" />
         </div>
 
-        <nav className="sticky top-4 z-50 max-w-[1400px] mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-2xl border border-white/50 shadow-lg shadow-indigo-100/20 rounded-2xl px-5 py-3 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="float-icon bg-gradient-to-br from-indigo-500 to-violet-600 p-2 rounded-xl shadow-lg shadow-indigo-300/40">
-                <Zap className="text-white w-4 h-4 fill-current" />
-              </div>
-              <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                Smart<span className="shimmer-text">Mark</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowCmdPalette(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
-              >
-                <Command className="w-3 h-3" />
-                <span>Search</span>
-                <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-400">
-                  ⌘K
-                </kbd>
-              </button>
-
-              
-              <button
-                onClick={() => setShowMobileCollections(true)}
-                className="lg:hidden flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all"
-              >
-                <Folder className="w-3 h-3" />
-                <span>Collections</span>
-                {collections.length > 0 && (
-                  <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                    {collections.length}
-                  </span>
-                )}
-              </button>
-              {user && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-200/80">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-bold text-slate-500">
-                    {user.email}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={handleLogout}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </nav>
+        <DashboardNav
+          userEmail={user?.email}
+          collections={col.collections}
+          onOpenCommandPalette={() => setShowCmdPalette(true)}
+          onOpenMobileCollections={() => setShowMobileCollections(true)}
+          onLogout={handleLogout}
+        />
 
         <div className="relative z-10 max-w-[1400px] mx-auto px-5 py-6 flex gap-6">
-          
-          <aside className="w-64 flex-shrink-0 sticky top-24 h-fit">
-            <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-lg shadow-indigo-100/20 p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
-                  Collections
-                </h3>
-                <button
-                  onClick={() => setShowNewCollectionForm((p) => !p)}
-                  className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all"
-                  title="New collection"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                </button>
-              </div>
+          <Sidebar
+            collections={col.collections}
+            bookmarks={bm.bookmarks}
+            activeCollectionId={col.activeCollectionId}
+            dragOverCollectionId={dragOverCollectionId}
+            showNewCollectionForm={col.showNewCollectionForm}
+            newCollectionName={col.newCollectionName}
+            newCollectionColor={col.newCollectionColor}
+            newCollectionIcon={col.newCollectionIcon}
+            onSelectCollection={col.setActiveCollectionId}
+            onDeleteCollection={col.deleteCollection}
+            onToggleNewForm={() =>
+              col.setShowNewCollectionForm(!col.showNewCollectionForm)
+            }
+            onNameChange={col.setNewCollectionName}
+            onColorChange={col.setNewCollectionColor}
+            onIconChange={col.setNewCollectionIcon}
+            onCreate={col.createCollection}
+            onCancelForm={() => col.setShowNewCollectionForm(false)}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDropToCollection={handleDropToCollection}
+            onDropRemoveCollection={handleDropRemoveCollection}
+          />
 
-              <div
-                className={`drop-target mb-1 ${dragOverCollectionId === "__all__" ? "is-dragging-over" : ""}`}
-                onDragOver={(e) => handleDragOver(e, "__all__")}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDropRemoveCollection}
-              >
-                <button
-                  onClick={() => setActiveCollectionId(null)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-bold transition-all ${
-                    activeCollectionId === null
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <Bookmark className="w-3.5 h-3.5" />
-                  All Bookmarks
-                  <span className="ml-auto text-xs font-bold text-slate-400">
-                    {bookmarks.length}
-                  </span>
-                </button>
-              </div>
-              <div className="space-y-1 mt-2">
-                {collections.map((col) => {
-                  const count = bookmarks.filter(
-                    (b) => b.collection_id === col.id,
-                  ).length;
-                  const isActive = activeCollectionId === col.id;
-                  const isDragOver = dragOverCollectionId === col.id;
-
-                  return (
-                    <div
-                      key={col.id}
-                      className={`drop-target group flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
-                        isDragOver
-                          ? "is-dragging-over"
-                          : isActive
-                            ? "bg-slate-900 text-white shadow-sm"
-                            : "hover:bg-slate-100 text-slate-600"
-                      }`}
-                      onDragOver={(e) => handleDragOver(e, col.id)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, col.id)}
-                    >
-                      <button
-                        onClick={() =>
-                          setActiveCollectionId(isActive ? null : col.id)
-                        }
-                        className="flex items-center gap-2.5 flex-1 text-left"
-                      >
-                        <span className="text-base">{col.icon}</span>
-                        <span className="text-xs font-semibold truncate">
-                          {col.name}
-                        </span>
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-xs font-bold ${isActive ? "text-white/70" : "text-slate-400"}`}
-                        >
-                          {count}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteCollection(col.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-all text-slate-400 hover:text-red-500"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {showNewCollectionForm && (
-                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                  <input
-                    value={newCollectionName}
-                    onChange={(e) => setNewCollectionName(e.target.value)}
-                    placeholder="Collection name..."
-                    className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
-                    onKeyDown={(e) => e.key === "Enter" && createCollection()}
-                    autoFocus
-                  />
-                  <div className="flex gap-1.5 flex-wrap">
-                    {COLLECTION_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setNewCollectionColor(c)}
-                        className={`w-5 h-5 rounded-full border-2 transition-all ${newCollectionColor === c ? "border-slate-700 scale-110" : "border-transparent"}`}
-                        style={{ background: c }}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {COLLECTION_ICONS.map((icon) => (
-                      <button
-                        key={icon}
-                        onClick={() => setNewCollectionIcon(icon)}
-                        className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all ${newCollectionIcon === icon ? "bg-indigo-100 ring-2 ring-indigo-400" : "hover:bg-slate-200"}`}
-                      >
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={createCollection}
-                      className="flex-1 bg-slate-900 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                      Create
-                    </button>
-                    <button
-                      onClick={() => setShowNewCollectionForm(false)}
-                      className="px-3 text-xs text-slate-500 hover:text-slate-700 font-bold"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {collections.length > 0 && (
-                <p className="text-[10px] text-slate-400 font-medium text-center mt-4 flex items-center justify-center gap-1">
-                  <GripVertical className="w-3 h-3" />
-                  Drag cards to organize
-                </p>
-              )}
-            </div>
-          </aside>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8">
-              <div>
-                <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2 leading-none">
-                  {activeCollectionId
-                    ? (() => {
-                        const c = collections.find(
-                          (x) => x.id === activeCollectionId,
-                        );
-                        return c ? `${c.icon} ${c.name}` : "Collection";
-                      })()
-                    : "My Library"}
-                </h1>
-                <div className="flex items-center gap-4 text-slate-400 text-sm font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    {filteredBookmarks.length} items
-                  </span>
-                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    Live sync
-                  </span>
-                </div>
-              </div>
-              <div className="relative w-full md:w-80 group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className={`h-4 w-4 transition-colors ${isSearchingSemantic ? "text-indigo-400 animate-pulse" : "text-slate-400 group-focus-within:text-indigo-500"}`} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search semantically (e.g. 'react tutorials')..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-11 pr-10 py-3 bg-white/80 backdrop-blur-md rounded-2xl text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-indigo-400 focus:bg-white transition-all placeholder:text-slate-400 font-semibold text-sm outline-none"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
-                  >
-                    {isSearchingSemantic ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <X className="w-4 h-4" />}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {categories.length > 1 && (
-              <div className="flex items-center gap-2 mb-6 flex-wrap">
-                {categories.map((cat) => {
-                  const isActive = activeFilter === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveFilter(cat)}
-                      className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${isActive ? "bg-slate-900 text-white border-slate-900 shadow-md scale-105" : "bg-white/80 text-slate-500 border-slate-200 hover:border-slate-300"}`}
-                    >
-                      {cat}
-                      {cat !== "All" && (
-                        <span
-                          className={`ml-1.5 ${isActive ? "text-white/50" : "text-slate-400"}`}
-                        >
-                          {
-                            filteredBookmarks.filter(
-                              (b) => detectCategory(b.url).label === cat,
-                            ).length
-                          }
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="bg-white border border-slate-200/60 shadow-sm shadow-slate-200/20 rounded-2xl p-2 mb-8 mt-2 flex items-center gap-3 w-full transition-all focus-within:shadow-md focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50">
-              <div className="flex-1 relative">
-                <input
-                  ref={titleInputRef}
-                  type="url"
-                  value={url}
-                  onChange={(e) => {
-                    setUrl(e.target.value);
-                    if (!title) setTitle("Quick Save");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && url) {
-                      e.preventDefault();
-                      addBookmark(e as any);
-                    }
-                  }}
-                  placeholder="Paste any URL to save..."
-                  className="w-full bg-transparent pl-4 pr-4 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none"
-                />
-              </div>
-              
-              {collections.length > 0 && (
-                <div className="hidden sm:block border-l border-slate-100 pl-3">
-                  <select
-                    value={selectedCollectionId || ""}
-                    onChange={(e) => setSelectedCollectionId(e.target.value || null)}
-                    className="bg-transparent text-xs font-bold text-slate-500 outline-none cursor-pointer hover:text-slate-800"
-                  >
-                    <option value="">No collection</option>
-                    {collections.map((c) => (
-                      <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <button
-                onClick={addBookmark as any}
-                disabled={isSubmitting || !url}
-                className="bg-slate-900 hover:bg-indigo-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span className="text-xs hidden sm:inline">Save</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="w-full">
-                {loading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <SkeletonCard key={i} delay={i * 80} />
-                    ))}
-                  </div>
-                ) : filteredBookmarks.length === 0 ? (
-                  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-24 flex flex-col items-center text-center shadow-sm">
-                    <div className="bg-slate-50 p-6 rounded-3xl mb-5 shadow-sm border border-slate-100">
-                      <LayoutGrid className="w-10 h-10 text-slate-300" />
-                    </div>
-                    <h3 className="text-slate-900 font-extrabold text-xl">
-                      {searchQuery ? "No results found" : "Your library is empty"}
-                    </h3>
-                    <p className="text-slate-500 text-sm mt-2 max-w-sm">
-                      {searchQuery
-                        ? `We couldn't find any bookmarks matching "${searchQuery}". Try a different search.`
-                        : "Paste a URL in the bar above to start building your brilliant library."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredBookmarks.map((bm) => {
-                      const bmCollection = collections.find(
-                        (c) => c.id === bm.collection_id,
-                      );
-
-                      return (
-                        <BookmarkCard
-                          key={bm.id}
-                          bm={bm}
-                          bmCollection={bmCollection}
-                          hasSummary={!!summaries[bm.id]}
-                          isSummarizing={summarizingId === bm.id}
-                          isExpanded={expandedSummary === bm.id}
-                          isDeleting={deletingId === bm.id}
-                          copiedId={copiedId}
-                          summaries={summaries}
-                          onDragStart={handleDragStart}
-                          onSummarize={() => summarizeBookmark(bm)}
-                          onCopy={() => handleCopy(bm.url, bm.id)}
-                          onRemoveFromCollection={
-                            activeCollectionId ? () => removeFromCollection(bm.id) : undefined
-                          }
-                          onEdit={() => setEditingBookmark(bm)}
-                          onDelete={() => deleteBookmark(bm.id)}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-            </div>
-          </div>
+          <BookmarkGrid
+            bookmarks={bm.bookmarks}
+            filteredBookmarks={filteredBookmarks}
+            collections={col.collections}
+            loading={bm.loading}
+            searchQuery={search.searchQuery}
+            isSearching={search.isSearching}
+            onSearchChange={search.setSearchQuery}
+            activeFilter={activeFilter}
+            activeCollectionId={col.activeCollectionId}
+            onFilterChange={setActiveFilter}
+            selectedCollectionId={selectedCollectionId}
+            onSelectCollection={setSelectedCollectionId}
+            onPasteUrl={openQuickSave}
+            isSubmitting={bm.isSubmitting}
+            summaries={bm.summaries}
+            summarizingId={bm.summarizingId}
+            expandedSummary={bm.expandedSummary}
+            deletingId={bm.deletingId}
+            copiedId={bm.copiedId}
+            onDragStart={handleDragStart}
+            onSummarize={bm.summarizeBookmark}
+            onCopy={bm.handleCopy}
+            onRemoveFromCollection={(id) => bm.removeFromCollection(id)}
+            onEdit={setEditingBookmark}
+            onDelete={bm.deleteBookmark}
+          />
         </div>
       </div>
     </>

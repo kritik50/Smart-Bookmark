@@ -1,35 +1,50 @@
+// /api/save — Secure bookmark save endpoint
+// Used by the bookmarklet. Now uses POST + server-side auth.
+
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase-server";
 
-// Initialize Supabase admin client to bypass RLS if using an API key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export async function GET(req: NextRequest) {
-  const url = req.nextUrl.searchParams.get("url");
-  const title = req.nextUrl.searchParams.get("title") || "";
-  const userId = req.nextUrl.searchParams.get("userId"); // Simple auth for bookmarklet
-
-  if (!url || !userId) {
-    return NextResponse.json(
-      { error: "Missing required parameters: url, userId" },
-      { status: 400 }
-    );
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    // 1. Fetch metadata and summary via our internal logic (or directly here)
-    // For simplicity, we just save the bookmark first. The dashboard will summarize it later.
-    
-    const { data, error } = await supabaseAdmin
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const { url, title } = body;
+
+    if (!url) {
+      return NextResponse.json(
+        { error: "Missing required parameter: url" },
+        { status: 400 }
+      );
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid URL format" },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabase
       .from("bookmarks")
       .insert([
         {
           url,
           title: title || new URL(url).hostname,
-          user_id: userId,
+          user_id: user.id,
           created_at: new Date().toISOString(),
         },
       ])
@@ -41,23 +56,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Return a success page or redirect back to the app
-    return new NextResponse(
-      `<html>
-        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #fafafa;">
-          <div style="text-align: center; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <h2 style="color: #10b981; margin-bottom: 0.5rem;">✅ Saved successfully!</h2>
-            <p style="color: #64748b; margin-bottom: 1.5rem;">${url}</p>
-            <script>
-              setTimeout(() => { window.close(); }, 2000);
-            </script>
-            <p style="font-size: 0.8rem; color: #94a3b8;">This window will close automatically.</p>
-          </div>
-        </body>
-      </html>`,
-      { headers: { "Content-Type": "text/html" } }
-    );
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ success: true, bookmark: data });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

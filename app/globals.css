@@ -1,4 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+
+/* ─── Theme Tokens ─────────────────────────────────────────────────────────── */
 
 :root {
   --background: #ffffff;
@@ -12,15 +15,208 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─── Landing Page Animations ──────────────────────────────────────────────── */
+
+.serif { font-family: 'Instrument Serif', serif; }
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes reveal-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot)); }
+  50%      { transform: translateY(-10px) rotate(var(--rot)); }
+}
+
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(10px) skewX(-3deg); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) skewX(0deg); filter: blur(0); }
+}
+
+@keyframes word-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-10px); }
+}
+
+@keyframes shimmer-sweep {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.5); opacity: 1; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes notification-in {
+  0%   { opacity: 0; transform: translateX(60px) scale(0.9); }
+  60%  { transform: translateX(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10%  { transform: translate(-2%, -3%); }
+  30%  { transform: translate(3%, 2%); }
+  50%  { transform: translate(-1%, 4%); }
+  70%  { transform: translate(4%, -2%); }
+  90%  { transform: translate(-3%, 1%); }
+}
+
+@keyframes badge-slide {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px 0px rgba(99,102,241,0.3); }
+  50%      { box-shadow: 0 0 40px 8px rgba(99,102,241,0.5); }
+}
+
+.reveal-up   { animation: reveal-up 0.65s cubic-bezier(0.22,1,0.36,1) both; }
+.reveal-left { animation: reveal-left 0.65s cubic-bezier(0.22,1,0.36,1) both; }
+.word-in     { animation: word-in 0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
+.word-out    { animation: word-out 0.3s ease-in forwards; }
+.card-float  { animation: card-float var(--dur, 4s) ease-in-out infinite; }
+
+.shimmer-btn {
+  background: linear-gradient(90deg,
+    #1e1b4b 0%, #312e81 20%, #4338ca 40%, #6366f1 50%,
+    #4338ca 60%, #312e81 80%, #1e1b4b 100%);
+  background-size: 200% 100%;
+  animation: shimmer-sweep 2.5s linear infinite;
+}
+
+.grain-overlay::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.045;
+  pointer-events: none;
+  animation: grain 0.5s steps(1) infinite;
+}
+
+.notification-card { animation: notification-in 0.7s cubic-bezier(0.22,1,0.36,1) 1.8s both; }
+.badge-slide       { animation: badge-slide 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+.glow-pulse        { animation: glow-pulse 3s ease-in-out infinite; }
+
+.google-btn:hover .google-icon { transform: scale(1.15) rotate(-5deg); }
+.google-btn:active { transform: scale(0.97); }
+.feature-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ─── Dashboard Animations ─────────────────────────────────────────────────── */
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes card-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.88) translateY(-6px); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-7px) rotate(1.5deg); }
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes warn-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes summary-in {
+  from { opacity: 0; transform: scaleY(0.8); transform-origin: top; }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes cmd-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.card-enter      { animation: card-in 0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.card-exit       { animation: card-out 0.28s cubic-bezier(0.55,0,1,0.45) forwards; }
+.badge-pop       { animation: badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.warn-in         { animation: warn-in 0.3s ease-out forwards; }
+.summary-in      { animation: summary-in 0.3s ease-out forwards; }
+.cmd-palette-in  { animation: cmd-in 0.25s cubic-bezier(0.22,1,0.36,1) forwards; }
+.float-icon      { animation: float 4s ease-in-out infinite; }
+.animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.22,1,0.36,1); }
+
+.shimmer-text {
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899, #6366f1);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ─── Dashboard: Drop Target Highlight ─────────────────────────────────────── */
+
+.drop-target {
+  transition: all 0.15s ease;
+  border-radius: 0.75rem;
+}
+
+.drop-target.is-dragging-over {
+  background: rgba(99,102,241,0.1) !important;
+  outline: 2px dashed #6366f1;
+  outline-offset: 1px;
+  transform: scale(1.02);
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 10px; }
+
+/* ─── Mobile Responsive ────────────────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  aside { display: none !important; }
+  .flex-1.min-w-0 { width: 100% !important; }
+}
+
+@media (max-width: 640px) {
+  h1 { font-size: 1.875rem !important; }
+  nav .text-xl { font-size: 1.125rem !important; }
 }
